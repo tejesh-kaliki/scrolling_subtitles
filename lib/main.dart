@@ -217,7 +217,7 @@ class _VideoSectionState extends State<VideoSection> {
 
   /// Denotes the index of the current background sub.
   /// -1 means that no background sub will be displayed.
-  int backgroundSub = -1;
+  ValueNotifier<Subtitle?> bgSubValue = ValueNotifier(null);
 
   @override
   void initState() {
@@ -257,8 +257,9 @@ class _VideoSectionState extends State<VideoSection> {
       }
     });
 
-    if (bgSub != backgroundSub) {
-      setState(() => backgroundSub = bgSub);
+    Subtitle? newSub = bgSub != -1 ? widget.backgroundSubs![bgSub] : null;
+    if (newSub != bgSubValue.value) {
+      bgSubValue.value = newSub;
     }
   }
 
@@ -275,12 +276,11 @@ class _VideoSectionState extends State<VideoSection> {
             opacity: overlay ? 1.0 : 0.0,
             child: Container(
               color: Colors.black.withOpacity(0.6),
-              child: displaySubtitleHighlight(position: subPosition),
+              child: showSubtitleHighlight(),
             ),
           ),
-          Opacity(
-            opacity: showSubs ? 1 : 0,
-            child: FractionallySizedBox(
+          if (showSubs)
+            FractionallySizedBox(
               widthFactor: 3 / 4,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -297,73 +297,78 @@ class _VideoSectionState extends State<VideoSection> {
                 ),
               ),
             ),
-          ),
-          if (backgroundSub != -1) showBackgroundSub(),
+          if (bgSubValue != -1) showBackgroundSub(),
           displayPositon(),
         ],
       ),
     );
   }
 
-  Widget displaySubtitleHighlight({required double position}) {
-    return Align(
-      alignment: FractionalOffset(0, position / (subsPerPage - 1)),
-      child: FractionallySizedBox(
-        heightFactor: 1 / subsPerPage,
-        child: ValueListenableBuilder<String>(
-          valueListenable: charValue,
-          builder: (context, character, child) {
-            Color color = charColors.of(character);
-            double height = MediaQuery.of(context).size.height;
+  Widget showSubtitleHighlight() {
+    return setPosAndHeight(
+      pos: subPosition,
+      subsPerPage: subsPerPage,
+      child: ValueListenableBuilder<String>(
+        valueListenable: charValue,
+        builder: (context, character, child) {
+          double height = MediaQuery.of(context).size.height;
 
-            return Row(
-              children: [
-                Flexible(
-                  fit: FlexFit.tight,
-                  child: SubtitlePointer(color: color),
-                ),
-                Flexible(
-                  flex: 6,
-                  child: Stack(
-                    alignment: Alignment.centerLeft,
-                    children: [
-                      Blur(
-                        borderRadius: BorderRadius.circular(20),
-                        blur: 10,
-                        colorOpacity: 0,
-                        blurColor: color,
-                        overlay: AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: color, width: 3),
-                            color: color.withOpacity(0.3),
-                          ),
-                        ),
-                        child: Container(height: 80),
-                      ),
-                      Transform.translate(
-                        offset:
-                            Offset(10, -min(80.0, height / subsPerPage) / 2),
-                        child: CharacterName(
-                          character: character,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Flexible(child: Container()),
-              ],
-            );
-          },
-        ),
+          return SubtitleHighlight(
+            character: character,
+            height: min(height, 80),
+          );
+        },
       ),
     );
   }
 
   Widget showBackgroundSub() {
-    double position = (subPosition + subsPerPage - 1) / 2;
-    return displaySubtitleHighlight(position: position);
+    return ValueListenableBuilder<Subtitle?>(
+      valueListenable: bgSubValue,
+      builder: (context, subtitle, child) {
+        if (subtitle == null) return Container();
+
+        double height = MediaQuery.of(context).size.height;
+        String character = subtitle.character;
+
+        return setPosAndHeight(
+          pos: (subPosition + subsPerPage - 1) / 2,
+          subsPerPage: subsPerPage,
+          child: Transform.scale(
+            scale: 0.7,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SubtitleHighlight(
+                  character: character,
+                  height: min(height, 80),
+                ),
+                FractionallySizedBox(
+                  widthFactor: 3 / 4,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: SubtitleDisplay(subtitle.parsedData, current: true),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Sets the position and height of the subtitle highlight.
+  ///
+  /// subsPerPage: the number of divisions in the entire page vertically.
+  /// pos: position of the highlight or subtitle, based on number of divisions.
+  Widget setPosAndHeight(
+      {required Widget child, required double pos, required int subsPerPage}) {
+    FractionalOffset offset = FractionalOffset(0, pos / (subsPerPage - 1));
+    return Align(
+      alignment: offset,
+      child: FractionallySizedBox(heightFactor: 1 / subsPerPage, child: child),
+    );
   }
 
   Widget displayPositon() {
@@ -395,6 +400,59 @@ class _VideoSectionState extends State<VideoSection> {
           },
         ),
       ),
+    );
+  }
+}
+
+class SubtitleHighlight extends StatelessWidget {
+  SubtitleHighlight({
+    super.key,
+    required this.character,
+    this.height = 80.0,
+  });
+
+  final String character;
+  final double height;
+  final CharacterColors charColors = CharacterColors();
+
+  @override
+  Widget build(BuildContext context) {
+    Color color = charColors.of(character);
+
+    return Row(
+      children: [
+        Flexible(fit: FlexFit.tight, child: SubtitlePointer(color: color)),
+        Flexible(
+          flex: 6,
+          child: Stack(
+            alignment: Alignment.centerLeft,
+            children: [
+              Blur(
+                borderRadius: BorderRadius.circular(20),
+                blur: 10,
+                colorOpacity: 0,
+                blurColor: color,
+                overlay: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: color, width: 3),
+                    color: color.withOpacity(0.3),
+                  ),
+                ),
+                child: Container(height: 80),
+              ),
+              Transform.translate(
+                offset: Offset(10, -height / 2),
+                child: CharacterName(
+                  character: character,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Flexible(child: Container()),
+      ],
     );
   }
 }
