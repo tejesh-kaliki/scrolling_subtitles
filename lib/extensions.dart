@@ -6,7 +6,7 @@ extension SubtitleEx on Subtitle {
 
   String get parsedData {
     RegExpMatch? match = _characterNameRegex.firstMatch(data);
-    return match?.group(3) ?? "";
+    return match?.group(3)?.trim() ?? "";
   }
 
   String get character {
