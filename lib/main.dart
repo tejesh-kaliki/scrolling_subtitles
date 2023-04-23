@@ -247,6 +247,12 @@ class _VideoSectionState extends State<VideoSection> {
   }
 
   void checkForBackgroundSub(Duration playerPos) {
+    if (bgSubValue.value != null) {
+      Duration start = bgSubValue.value!.start;
+      Duration end = bgSubValue.value!.end;
+      if (start < playerPos && end > playerPos) return;
+    }
+
     int bgSub = -1;
     widget.backgroundSubs?.forEach((subtitle) {
       Duration start = subtitle.start - const Duration(milliseconds: 500);
@@ -297,7 +303,7 @@ class _VideoSectionState extends State<VideoSection> {
                 ),
               ),
             ),
-          if (bgSubValue != -1) showBackgroundSub(),
+          showBackgroundSub(),
           displayPositon(),
         ],
       ),
