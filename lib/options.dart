@@ -38,14 +38,15 @@ class _OptionsPanelState extends State<OptionsPanel> {
   }
 
   void pickSubtitleFile() async {
+    setState(() => loadingSubs = true);
     FilePickerResult? result = await FilePicker.platform
         .pickFiles(type: FileType.custom, allowedExtensions: ["vtt"]);
-    if (result == null) return;
+    if (result == null) {
+      setState(() => loadingSubs = false);
+      return;
+    }
 
-    setState(() {
-      subtitlePath = result.files.single.path;
-      loadingSubs = true;
-    });
+    subtitlePath = result.files.single.path;
     if (widget.onSubtitleChanged != null && subtitlePath != null) {
       await widget.onSubtitleChanged!(subtitlePath!);
     }
@@ -108,17 +109,17 @@ class _OptionsPanelState extends State<OptionsPanel> {
               Text(subtitlePath == null
                   ? "Select subtitle file:"
                   : "Selected subtitle file: ${displayPath(subtitlePath!)}"),
-              if (!loadingSubs)
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: TextButton(
-                    onPressed: pickSubtitleFile,
-                    child: Text(subtitlePath == null
-                        ? "Choose the subtitle file"
-                        : "Choose another subtitle file"),
-                  ),
-                ),
-              if (loadingSubs) const Text("Loading subs... Please wait"),
+              loadingSubs
+                  ? const Text("Loading subs... Please wait")
+                  : Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: TextButton(
+                        onPressed: pickSubtitleFile,
+                        child: Text(subtitlePath == null
+                            ? "Choose the subtitle file"
+                            : "Choose another subtitle file"),
+                      ),
+                    ),
             ],
           ),
           const Divider(),

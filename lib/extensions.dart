@@ -10,9 +10,9 @@ extension SubtitleEx on Subtitle {
   }
 
   String get character {
-    RegExpMatch? match = _characterNameRegex.firstMatch(data);
+    RegExpMatch? match = _characterNameRegex.firstMatch(data.toLowerCase());
     String name;
-    if (match == null) {
+    if (match == null || match.group(1) == null) {
       name = "none";
     } else if (match.group(2) == null) {
       name = match.group(1)!.trim();
@@ -26,8 +26,7 @@ extension SubtitleEx on Subtitle {
   }
 
   bool get isBackgroundSub {
-    RegExpMatch? match = _characterNameRegex.firstMatch(data);
-    if (match == null || match.group(2) == null) return false;
-    return match.group(2)!.contains("(background)");
+    RegExpMatch? match = _characterNameRegex.firstMatch(data.toLowerCase());
+    return match?.group(2)?.contains("(background)") ?? false;
   }
 }

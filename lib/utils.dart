@@ -42,7 +42,7 @@ class CharacterColors {
       "schwartz": Colors.grey.shade800,
       "weiss": Colors.grey.shade100,
       "temple attendant": Colors.grey,
-      "ferdinand's temple attendant": Colors.grey,
+      "ferdinand's temple attendants": Colors.grey,
       "dunkelfelger knights": Colors.blue,
       "ehrenfest noble": Colors.yellow,
       "ehrenfest students": Colors.yellow,

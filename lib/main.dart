@@ -271,8 +271,10 @@ class _VideoSectionState extends State<VideoSection> {
 
   @override
   Widget build(BuildContext context) {
+    double subWidth = getSubtitleWidth(context);
+
     return AspectRatio(
-      aspectRatio: widget.imageSize.width / widget.imageSize.height,
+      aspectRatio: widget.imageSize.aspectRatio,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -286,8 +288,8 @@ class _VideoSectionState extends State<VideoSection> {
             ),
           ),
           if (showSubs)
-            FractionallySizedBox(
-              widthFactor: 3 / 4,
+            SizedBox(
+              width: subWidth,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: SubtitleListView(
@@ -298,6 +300,7 @@ class _VideoSectionState extends State<VideoSection> {
                   positionStream: widget.player.positionStream,
                   blurPreview: true,
                   totalDivs: subsPerPage,
+                  width: subWidth,
                   offset:
                       subPosition.round() - ((subsPerPage + 1) / 2).round() + 1,
                 ),
@@ -317,11 +320,12 @@ class _VideoSectionState extends State<VideoSection> {
       child: ValueListenableBuilder<String>(
         valueListenable: charValue,
         builder: (context, character, child) {
-          double height = MediaQuery.of(context).size.height;
+          double height = MediaQuery.of(context).size.height / subsPerPage;
 
           return SubtitleHighlight(
             character: character,
-            height: min(height, 80),
+            height: 80,
+            maxHeight: height,
           );
         },
       ),
@@ -334,7 +338,7 @@ class _VideoSectionState extends State<VideoSection> {
       builder: (context, subtitle, child) {
         if (subtitle == null) return Container();
 
-        double height = MediaQuery.of(context).size.height;
+        double height = MediaQuery.of(context).size.height / subsPerPage;
         String character = subtitle.character;
 
         return setPosAndHeight(
@@ -347,7 +351,8 @@ class _VideoSectionState extends State<VideoSection> {
               children: [
                 SubtitleHighlight(
                   character: character,
-                  height: min(height, 80),
+                  height: 80,
+                  maxHeight: height,
                 ),
                 FractionallySizedBox(
                   widthFactor: 3 / 4,
@@ -374,6 +379,7 @@ class _VideoSectionState extends State<VideoSection> {
     return Align(
       alignment: offset,
       child: FractionallySizedBox(heightFactor: 1 / subsPerPage, child: child),
+      // child: SizedBox(height: 110, child: child),
     );
   }
 
@@ -408,6 +414,12 @@ class _VideoSectionState extends State<VideoSection> {
       ),
     );
   }
+
+  double getSubtitleWidth(BuildContext context) {
+    Size size = MediaQuery.of(context).size;
+    double aspectRatio = widget.imageSize.aspectRatio;
+    return size.height * aspectRatio * 3 / 4;
+  }
 }
 
 class SubtitleHighlight extends StatelessWidget {
@@ -415,10 +427,12 @@ class SubtitleHighlight extends StatelessWidget {
     super.key,
     required this.character,
     this.height = 80.0,
+    this.maxHeight = double.infinity,
   });
 
   final String character;
   final double height;
+  final double maxHeight;
   final CharacterColors charColors = CharacterColors();
 
   @override
@@ -446,13 +460,11 @@ class SubtitleHighlight extends StatelessWidget {
                     color: color.withOpacity(0.3),
                   ),
                 ),
-                child: Container(height: 80),
+                child: Container(height: min(height, maxHeight)),
               ),
               Transform.translate(
                 offset: Offset(10, -height / 2),
-                child: CharacterName(
-                  character: character,
-                ),
+                child: CharacterName(character: character),
               ),
             ],
           ),
@@ -524,6 +536,7 @@ class SubtitleListView extends StatefulWidget {
     this.blurPreview = false,
     this.totalDivs = 7,
     this.offset = 1,
+    this.width = double.infinity,
   });
 
   final void Function(String character) onChange;
@@ -532,6 +545,7 @@ class SubtitleListView extends StatefulWidget {
   final bool blurPreview;
   final int totalDivs;
   final int offset;
+  final double width;
 
   @override
   State<SubtitleListView> createState() => _SubtitleListViewState();
@@ -603,6 +617,7 @@ class _SubtitleListViewState extends State<SubtitleListView> {
                   character: widget.subtitles[i - offset].character,
                   blur: widget.blurPreview ? i > currentSub + offset : false,
                   current: i == currentSub + offset,
+                  width: widget.width,
                 );
         },
         childCount: widget.subtitles.length + offset,
@@ -616,6 +631,7 @@ class SubtitleDisplay extends StatefulWidget {
   final String char;
   final bool blur;
   final bool current;
+  final double width;
 
   const SubtitleDisplay(
     this.text, {
@@ -623,6 +639,7 @@ class SubtitleDisplay extends StatefulWidget {
     String? character,
     this.blur = false,
     this.current = false,
+    this.width = double.infinity,
   }) : char = character ?? "none";
 
   @override
@@ -637,6 +654,12 @@ class _SubtitleDisplayState extends State<SubtitleDisplay> {
     Color color = widget.blur || widget.current
         ? Colors.white
         : charColor.of(widget.char);
+
+    // bool overflow = getTextScaleFactor(context);
+    double textScale = 1.0;
+    if (widget.text.length > 100) {
+      textScale = getTextScale(context);
+    }
 
     Widget child = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 5),
@@ -658,6 +681,7 @@ class _SubtitleDisplayState extends State<SubtitleDisplay> {
             widget.text,
             textAlign: TextAlign.left,
             textWidthBasis: TextWidthBasis.parent,
+            textScaleFactor: textScale,
           ),
         ),
       ),
@@ -676,6 +700,25 @@ class _SubtitleDisplayState extends State<SubtitleDisplay> {
       alignment: Alignment.centerLeft,
       child: child,
     );
+  }
+
+  double getTextScale(BuildContext context) {
+    TextStyle textStyle = GoogleFonts.poppins(
+      textStyle: const TextStyle(
+        fontWeight: FontWeight.w500,
+        letterSpacing: 1,
+        fontSize: 18,
+      ),
+    );
+    ui.ParagraphConstraints constraints =
+        ui.ParagraphConstraints(width: widget.width - 110);
+
+    ui.ParagraphBuilder pb =
+        ui.ParagraphBuilder(textStyle.getParagraphStyle(maxLines: 2))
+          ..addText(widget.text);
+    ui.Paragraph paragraph = pb.build()..layout(constraints);
+
+    return paragraph.didExceedMaxLines ? 0.75 : 1.0;
   }
 }
 
