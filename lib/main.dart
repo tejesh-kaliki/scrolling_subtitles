@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
 
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:blur/blur.dart';
 import 'package:bordered_text/bordered_text.dart';
 import 'package:flutter/cupertino.dart';
@@ -275,40 +276,48 @@ class _VideoSectionState extends State<VideoSection> {
 
     return AspectRatio(
       aspectRatio: widget.imageSize.aspectRatio,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Image.file(widget.imageFile),
-          AnimatedOpacity(
-            duration: const Duration(milliseconds: 300),
-            opacity: overlay ? 1.0 : 0.0,
-            child: Container(
-              color: Colors.black.withOpacity(0.6),
-              child: showSubtitleHighlight(),
-            ),
-          ),
-          if (showSubs)
-            SizedBox(
-              width: subWidth,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: SubtitleListView(
-                  onChange: (c) {
-                    charValue.value = c;
-                  },
-                  subtitles: widget.subtitles ?? [],
-                  positionStream: widget.player.positionStream,
-                  blurPreview: true,
-                  totalDivs: subsPerPage,
-                  width: subWidth,
-                  offset:
-                      subPosition.round() - ((subsPerPage + 1) / 2).round() + 1,
+      child: FittedBox(
+        fit: BoxFit.contain,
+        child: SizedBox(
+          height: widget.imageSize.height,
+          width: widget.imageSize.width,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Image.file(widget.imageFile),
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 300),
+                opacity: overlay ? 1.0 : 0.0,
+                child: Container(
+                  color: Colors.black.withOpacity(0.6),
+                  child: showSubtitleHighlight(),
                 ),
               ),
-            ),
-          showBackgroundSub(),
-          displayPositon(),
-        ],
+              if (showSubs)
+                SizedBox(
+                  width: subWidth,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: SubtitleListView(
+                      onChange: (c) {
+                        charValue.value = c;
+                      },
+                      subtitles: widget.subtitles ?? [],
+                      positionStream: widget.player.positionStream,
+                      blurPreview: true,
+                      totalDivs: subsPerPage,
+                      width: subWidth,
+                      offset: subPosition.round() -
+                          ((subsPerPage + 1) / 2).round() +
+                          1,
+                    ),
+                  ),
+                ),
+              showBackgroundSub(),
+              displayPositon(),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -320,11 +329,12 @@ class _VideoSectionState extends State<VideoSection> {
       child: ValueListenableBuilder<String>(
         valueListenable: charValue,
         builder: (context, character, child) {
-          double height = MediaQuery.of(context).size.height / subsPerPage;
+          // double height = MediaQuery.of(context).size.height / subsPerPage;
+          double height = widget.imageSize.height / subsPerPage;
 
           return SubtitleHighlight(
             character: character,
-            height: 80,
+            height: height * 0.8,
             maxHeight: height,
           );
         },
@@ -345,17 +355,18 @@ class _VideoSectionState extends State<VideoSection> {
           pos: (subPosition + subsPerPage - 1) / 2,
           subsPerPage: subsPerPage,
           child: Transform.scale(
-            scale: 0.7,
+            scale: 0.8,
             child: Stack(
               alignment: Alignment.center,
               children: [
                 SubtitleHighlight(
                   character: character,
-                  height: 80,
+                  height: height,
                   maxHeight: height,
                 ),
+                // TODO: Width of the box, change later.
                 FractionallySizedBox(
-                  widthFactor: 3 / 4,
+                  widthFactor: 4 / 5,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: SubtitleDisplay(subtitle.parsedData, current: true),
@@ -416,9 +427,8 @@ class _VideoSectionState extends State<VideoSection> {
   }
 
   double getSubtitleWidth(BuildContext context) {
-    Size size = MediaQuery.of(context).size;
-    double aspectRatio = widget.imageSize.aspectRatio;
-    return size.height * aspectRatio * 3 / 4;
+    Size size = widget.imageSize;
+    return size.width * 4 / 5;
   }
 }
 
@@ -443,7 +453,7 @@ class SubtitleHighlight extends StatelessWidget {
       children: [
         Flexible(fit: FlexFit.tight, child: SubtitlePointer(color: color)),
         Flexible(
-          flex: 6,
+          flex: 8,
           child: Stack(
             alignment: Alignment.centerLeft,
             children: [
@@ -655,11 +665,26 @@ class _SubtitleDisplayState extends State<SubtitleDisplay> {
         ? Colors.white
         : charColor.of(widget.char);
 
+    if (color.getLightness() < 0.625) color = color.withLightness(0.625);
+
     // bool overflow = getTextScaleFactor(context);
     double textScale = 1.0;
     if (widget.text.length > 100) {
       textScale = getTextScale(context);
     }
+
+    Text text = Text(
+      widget.text,
+      // textAlign: TextAlign.left,
+      // textWidthBasis: TextWidthBasis.parent,
+      textScaleFactor: textScale,
+    );
+    // AutoSizeText(
+    //   widget.text,
+    //   maxLines: 2,
+    //   textAlign: TextAlign.left,
+    //   // textWidthBasis: TextWidthBasis.parent,
+    // ) ;
 
     Widget child = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 5),
@@ -670,19 +695,14 @@ class _SubtitleDisplayState extends State<SubtitleDisplay> {
             color: color,
             fontWeight: FontWeight.w500,
             letterSpacing: 1,
-            fontSize: 18,
+            fontSize: 20,
           ),
         ),
         child: BorderedText(
-          strokeWidth: 4,
+          strokeWidth: 5,
           strokeJoin: StrokeJoin.round,
           strokeColor: Colors.black,
-          child: Text(
-            widget.text,
-            textAlign: TextAlign.left,
-            textWidthBasis: TextWidthBasis.parent,
-            textScaleFactor: textScale,
-          ),
+          child: text,
         ),
       ),
     );
@@ -769,11 +789,10 @@ class _SubtitlePointerState extends State<SubtitlePointer>
   @override
   Widget build(BuildContext context) {
     Color color = widget.color;
-    HSLColor hslColor = HSLColor.fromColor(color);
-    if (hslColor.lightness < 0.625) {
-      color = hslColor.withLightness(0.625).toColor();
-    } else if (hslColor.lightness > 0.94) {
-      color = hslColor.withLightness(0.94).toColor();
+    if (color.getLightness() < 0.625) {
+      color = color.withLightness(0.625);
+    } else if (color.getLightness() > 0.94) {
+      color = color.withLightness(0.94);
     }
     return Stack(
       alignment: Alignment.centerRight,

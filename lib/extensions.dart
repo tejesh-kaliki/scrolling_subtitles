@@ -1,3 +1,6 @@
+import 'dart:ui';
+
+import 'package:flutter/painting.dart';
 import 'package:subtitle/subtitle.dart';
 
 extension SubtitleEx on Subtitle {
@@ -28,5 +31,16 @@ extension SubtitleEx on Subtitle {
   bool get isBackgroundSub {
     RegExpMatch? match = _characterNameRegex.firstMatch(data.toLowerCase());
     return match?.group(2)?.contains("(background)") ?? false;
+  }
+}
+
+extension ColorLuminance on Color {
+  double getLightness() {
+    return HSLColor.fromColor(this).lightness;
+  }
+
+  Color withLightness(double lightness) {
+    HSLColor hslColor = HSLColor.fromColor(this);
+    return hslColor.withLightness(lightness).toColor();
   }
 }
