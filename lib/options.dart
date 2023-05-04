@@ -55,7 +55,7 @@ class _OptionsPanelState extends State<OptionsPanel> {
 
   void pickAudioFile() async {
     FilePickerResult? result =
-        await FilePicker.platform.pickFiles(type: FileType.media);
+        await FilePicker.platform.pickFiles(type: FileType.any);
     if (result == null) return;
 
     setState(() => audioPath = result.files.single.path);
