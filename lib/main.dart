@@ -210,7 +210,7 @@ class VideoSection extends StatefulWidget {
 class _VideoSectionState extends State<VideoSection> {
   ValueNotifier<String> charValue = ValueNotifier("none");
   CharacterColors charColors = CharacterColors();
-  // TODO: Make user select subtitle position
+  // TODO: Make user select subtitle display position
   int subsPerPage = 9;
   double subPosition = 6;
   bool showSubs = false;
@@ -277,7 +277,7 @@ class _VideoSectionState extends State<VideoSection> {
     return AspectRatio(
       aspectRatio: widget.imageSize.aspectRatio,
       child: FittedBox(
-        fit: BoxFit.contain,
+        fit: BoxFit.cover,
         child: SizedBox(
           height: widget.imageSize.height,
           width: widget.imageSize.width,
@@ -329,7 +329,6 @@ class _VideoSectionState extends State<VideoSection> {
       child: ValueListenableBuilder<String>(
         valueListenable: charValue,
         builder: (context, character, child) {
-          // double height = MediaQuery.of(context).size.height / subsPerPage;
           double height = widget.imageSize.height / subsPerPage;
 
           return SubtitleHighlight(
@@ -348,23 +347,22 @@ class _VideoSectionState extends State<VideoSection> {
       builder: (context, subtitle, child) {
         if (subtitle == null) return Container();
 
-        double height = MediaQuery.of(context).size.height / subsPerPage;
+        double height = widget.imageSize.height / subsPerPage;
         String character = subtitle.character;
 
         return setPosAndHeight(
           pos: (subPosition + subsPerPage - 1) / 2,
           subsPerPage: subsPerPage,
           child: Transform.scale(
-            scale: 0.8,
+            scale: 0.85,
             child: Stack(
               alignment: Alignment.center,
               children: [
                 SubtitleHighlight(
                   character: character,
-                  height: height,
+                  height: height * 0.8,
                   maxHeight: height,
                 ),
-                // TODO: Width of the box, change later.
                 FractionallySizedBox(
                   widthFactor: 4 / 5,
                   child: Padding(
@@ -390,7 +388,6 @@ class _VideoSectionState extends State<VideoSection> {
     return Align(
       alignment: offset,
       child: FractionallySizedBox(heightFactor: 1 / subsPerPage, child: child),
-      // child: SizedBox(height: 110, child: child),
     );
   }
 
@@ -667,7 +664,6 @@ class _SubtitleDisplayState extends State<SubtitleDisplay> {
 
     if (color.getLightness() < 0.625) color = color.withLightness(0.625);
 
-    // bool overflow = getTextScaleFactor(context);
     double textScale = 1.0;
     if (widget.text.length > 100) {
       textScale = getTextScale(context);
@@ -675,16 +671,8 @@ class _SubtitleDisplayState extends State<SubtitleDisplay> {
 
     Text text = Text(
       widget.text,
-      // textAlign: TextAlign.left,
-      // textWidthBasis: TextWidthBasis.parent,
       textScaleFactor: textScale,
     );
-    // AutoSizeText(
-    //   widget.text,
-    //   maxLines: 2,
-    //   textAlign: TextAlign.left,
-    //   // textWidthBasis: TextWidthBasis.parent,
-    // ) ;
 
     Widget child = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 5),
