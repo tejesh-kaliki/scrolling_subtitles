@@ -3,18 +3,19 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
 
-import 'package:auto_size_text/auto_size_text.dart';
 import 'package:blur/blur.dart';
 import 'package:bordered_text/bordered_text.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'package:subtitle/subtitle.dart';
 import 'package:dart_vlc/dart_vlc.dart';
 
 import 'extensions.dart';
 import 'options.dart';
 import 'utils.dart';
+import 'viewer_state.dart';
 
 void main() async {
   DartVLC.initialize();
@@ -26,12 +27,18 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Scrolling Subtitles',
-      theme: ThemeData(
-        primarySwatch: Colors.teal,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => ImageState()),
+        ChangeNotifierProvider(create: (context) => SubtitleState()),
+      ],
+      child: MaterialApp(
+        title: 'Scrolling Subtitles',
+        theme: ThemeData(
+          primarySwatch: Colors.teal,
+        ),
+        home: const MyHomePage(),
       ),
-      home: const MyHomePage(),
     );
   }
 }
@@ -43,8 +50,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  File? imageFile;
-  Size imageSize = const Size.square(1080);
   List<Subtitle>? subtitles;
   List<Subtitle>? backgroundSubs;
   Player player = Player(id: 69420, commandlineArguments: ["--no-video"]);
@@ -55,12 +60,6 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     CharacterColors().loadDefault();
-    // loadAllFiles();
-  }
-
-  Future<Size> getImageSize(File image) async {
-    ui.Image image = await decodeImageFromList(await imageFile!.readAsBytes());
-    return Size(image.width / 1.0, image.height / 1.0);
   }
 
   Future<void> parseSubs(String subPath) async {
@@ -92,46 +91,41 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    Widget body = Row(
-      mainAxisSize: MainAxisSize.max,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        displayAudioPlaybackOptions(),
-        if (imageFile == null)
-          const AspectRatio(
-            aspectRatio: 1,
-            child: Center(
-              child: Icon(
-                Icons.add_photo_alternate_rounded,
-                size: 300,
-                color: Colors.grey,
-              ),
+    File? image = context.select((ImageState s) => s.image);
+
+    return Scaffold(
+      body: Row(
+        mainAxisSize: MainAxisSize.max,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          displayAudioPlaybackOptions(),
+          image == null
+              ? const AspectRatio(
+                  aspectRatio: 1,
+                  child: Center(
+                    child: Icon(
+                      Icons.add_photo_alternate_rounded,
+                      size: 300,
+                      color: Colors.grey,
+                    ),
+                  ),
+                )
+              : VideoSection(
+                  player: player,
+                  subtitles: subtitles,
+                  backgroundSubs: backgroundSubs,
+                  subStartTime: subtitles?.first.start,
+                ),
+          Expanded(
+            child: OptionsPanel(
+              onSubtitleChanged: (subPath) async => await parseSubs(subPath),
+              onAudioChanged: (audioPath) async => loadAudio(audioPath),
+              seekToPos: seekToPos,
             ),
           ),
-        if (imageFile != null)
-          VideoSection(
-            imageFile: imageFile!,
-            imageSize: imageSize,
-            player: player,
-            subtitles: subtitles,
-            backgroundSubs: backgroundSubs,
-            subStartTime: subtitles?.first.start,
-          ),
-        Expanded(
-          child: OptionsPanel(
-            onImageChanged: (String filepath) async {
-              imageFile = File(filepath);
-              Size size = await getImageSize(imageFile!);
-              setState(() => imageSize = size);
-            },
-            onSubtitleChanged: (subPath) async => await parseSubs(subPath),
-            onAudioChanged: (audioPath) async => loadAudio(audioPath),
-            seekToPos: seekToPos,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
-    return Scaffold(body: body);
   }
 
   Column displayAudioPlaybackOptions() {
@@ -188,16 +182,12 @@ class _MyHomePageState extends State<MyHomePage> {
 class VideoSection extends StatefulWidget {
   const VideoSection({
     super.key,
-    required this.imageFile,
-    required this.imageSize,
     required this.player,
     this.subtitles,
     this.backgroundSubs,
     this.subStartTime,
   });
 
-  final File imageFile;
-  final Size imageSize;
   final Player player;
   final List<Subtitle>? subtitles;
   final List<Subtitle>? backgroundSubs;
@@ -272,64 +262,66 @@ class _VideoSectionState extends State<VideoSection> {
 
   @override
   Widget build(BuildContext context) {
-    double subWidth = getSubtitleWidth(context);
+    return Consumer<ImageState>(builder: (context, state, _) {
+      double subWidth = state.imageSize.width * 4 / 5;
 
-    return AspectRatio(
-      aspectRatio: widget.imageSize.aspectRatio,
-      child: FittedBox(
-        fit: BoxFit.cover,
-        child: SizedBox(
-          height: widget.imageSize.height,
-          width: widget.imageSize.width,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Image.file(widget.imageFile),
-              AnimatedOpacity(
-                duration: const Duration(milliseconds: 300),
-                opacity: overlay ? 1.0 : 0.0,
-                child: Container(
-                  color: Colors.black.withOpacity(0.6),
-                  child: showSubtitleHighlight(),
-                ),
-              ),
-              if (showSubs)
-                SizedBox(
-                  width: subWidth,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: SubtitleListView(
-                      onChange: (c) {
-                        charValue.value = c;
-                      },
-                      subtitles: widget.subtitles ?? [],
-                      positionStream: widget.player.positionStream,
-                      blurPreview: true,
-                      totalDivs: subsPerPage,
-                      width: subWidth,
-                      offset: subPosition.round() -
-                          ((subsPerPage + 1) / 2).round() +
-                          1,
-                    ),
+      return AspectRatio(
+        aspectRatio: state.imageSize.aspectRatio,
+        child: FittedBox(
+          fit: BoxFit.cover,
+          child: SizedBox(
+            height: state.imageSize.height,
+            width: state.imageSize.width,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Image.file(state.image!),
+                AnimatedOpacity(
+                  duration: const Duration(milliseconds: 300),
+                  opacity: overlay ? 1.0 : 0.0,
+                  child: Container(
+                    color: Colors.black.withOpacity(0.6),
+                    child: showSubtitleHighlight(state.imageSize),
                   ),
                 ),
-              showBackgroundSub(),
-              displayPositon(),
-            ],
+                if (showSubs)
+                  SizedBox(
+                    width: subWidth,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: SubtitleListView(
+                        onChange: (c) {
+                          charValue.value = c;
+                        },
+                        subtitles: widget.subtitles ?? [],
+                        positionStream: widget.player.positionStream,
+                        blurPreview: true,
+                        totalDivs: subsPerPage,
+                        width: subWidth,
+                        offset: subPosition.round() -
+                            ((subsPerPage + 1) / 2).round() +
+                            1,
+                      ),
+                    ),
+                  ),
+                showBackgroundSub(state.imageSize),
+                displayPositon(),
+              ],
+            ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 
-  Widget showSubtitleHighlight() {
+  Widget showSubtitleHighlight(Size imageSize) {
     return setPosAndHeight(
       pos: subPosition,
       subsPerPage: subsPerPage,
       child: ValueListenableBuilder<String>(
         valueListenable: charValue,
         builder: (context, character, child) {
-          double height = widget.imageSize.height / subsPerPage;
+          double height = imageSize.height / subsPerPage;
 
           return SubtitleHighlight(
             character: character,
@@ -341,13 +333,13 @@ class _VideoSectionState extends State<VideoSection> {
     );
   }
 
-  Widget showBackgroundSub() {
+  Widget showBackgroundSub(Size imageSize) {
     return ValueListenableBuilder<Subtitle?>(
       valueListenable: bgSubValue,
       builder: (context, subtitle, child) {
         if (subtitle == null) return Container();
 
-        double height = widget.imageSize.height / subsPerPage;
+        double height = imageSize.height / subsPerPage;
         String character = subtitle.character;
 
         return setPosAndHeight(
@@ -414,18 +406,13 @@ class _VideoSectionState extends State<VideoSection> {
             String duration = state?.duration.toString().substring(0, 7) ?? "-";
             return Text(
               "$position / $duration",
-              style: GoogleFonts.acme(color: Colors.black),
+              style: GoogleFonts.acme(color: Colors.black, fontSize: 18),
               textAlign: TextAlign.center,
             );
           },
         ),
       ),
     );
-  }
-
-  double getSubtitleWidth(BuildContext context) {
-    Size size = widget.imageSize;
-    return size.width * 4 / 5;
   }
 }
 
@@ -683,7 +670,7 @@ class _SubtitleDisplayState extends State<SubtitleDisplay> {
             color: color,
             fontWeight: FontWeight.w500,
             letterSpacing: 1,
-            fontSize: 20,
+            fontSize: 23,
           ),
         ),
         child: BorderedText(
