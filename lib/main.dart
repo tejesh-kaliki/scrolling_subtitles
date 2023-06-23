@@ -15,7 +15,7 @@ import 'package:dart_vlc/dart_vlc.dart';
 import 'extensions.dart';
 import 'options.dart';
 import 'utils.dart';
-import 'viewer_state.dart';
+import 'state_management.dart';
 
 void main() async {
   DartVLC.initialize();
@@ -31,6 +31,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (context) => ImageState()),
         ChangeNotifierProvider(create: (context) => SubtitleState()),
+        ChangeNotifierProvider(create: (context) => AudioState()),
       ],
       child: MaterialApp(
         title: 'Scrolling Subtitles',
@@ -50,44 +51,32 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  List<Subtitle>? subtitles;
-  List<Subtitle>? backgroundSubs;
-  Player player = Player(id: 69420, commandlineArguments: ["--no-video"]);
-  bool audioLoaded = false;
-  bool paused = true;
-
   @override
   void initState() {
     super.initState();
     CharacterColors().loadDefault();
   }
 
-  Future<void> parseSubs(String subPath) async {
-    SubtitleProvider subtitleProvider = SubtitleProvider.fromFile(
-      File(subPath),
-      type: SubtitleType.vtt,
-    );
-    SubtitleObject subtitleObject = await subtitleProvider.getSubtitle();
-    SubtitleParser parser = SubtitleParser(subtitleObject);
+  // Future<void> parseSubs(String subPath) async {
+  //   SubtitleProvider subtitleProvider = SubtitleProvider.fromFile(
+  //     File(subPath),
+  //     type: SubtitleType.vtt,
+  //   );
+  //   SubtitleObject subtitleObject = await subtitleProvider.getSubtitle();
+  //   SubtitleParser parser = SubtitleParser(subtitleObject);
 
-    subtitles = List<Subtitle>.empty(growable: true);
-    backgroundSubs = List<Subtitle>.empty(growable: true);
-    parser.parsing().forEach((element) {
-      if (element.isBackgroundSub) {
-        backgroundSubs!.add(element);
-      } else {
-        subtitles!.add(element);
-      }
-    });
+  //   subtitles = List<Subtitle>.empty(growable: true);
+  //   backgroundSubs = List<Subtitle>.empty(growable: true);
+  //   parser.parsing().forEach((element) {
+  //     if (element.isBackgroundSub) {
+  //       backgroundSubs!.add(element);
+  //     } else {
+  //       subtitles!.add(element);
+  //     }
+  //   });
 
-    setState(() {});
-  }
-
-  void loadAudio(String audioPath) {
-    File audioFile = File(audioPath);
-    player.open(Media.file(audioFile), autoStart: false);
-    setState(() => audioLoaded = true);
-  }
+  //   setState(() {});
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -110,101 +99,59 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                   ),
                 )
-              : VideoSection(
-                  player: player,
-                  subtitles: subtitles,
-                  backgroundSubs: backgroundSubs,
-                  subStartTime: subtitles?.first.start,
-                ),
-          Expanded(
-            child: OptionsPanel(
-              onSubtitleChanged: (subPath) async => await parseSubs(subPath),
-              onAudioChanged: (audioPath) async => loadAudio(audioPath),
-              seekToPos: seekToPos,
-            ),
-          ),
+              : const VideoSection(),
+          const Expanded(child: OptionsPanel()),
         ],
       ),
     );
   }
 
-  Column displayAudioPlaybackOptions() {
-    return Column(
-      children: [
-        IconButton(
-          onPressed: audioLoaded ? playOrPauseAudio : null,
-          icon: paused
-              ? const Icon(Icons.play_arrow_rounded)
-              : const Icon(Icons.pause_rounded),
-        ),
-        IconButton(
-          onPressed: audioLoaded ? () => seekToPos(Duration.zero) : null,
-          icon: const Icon(Icons.fast_rewind_rounded),
-        ),
-        IconButton(
-          onPressed: audioLoaded ? forwardAudio10s : null,
-          icon: const Icon(Icons.forward_10_rounded),
-        ),
-        IconButton(
-          onPressed: audioLoaded ? rewindAudio10s : null,
-          icon: const Icon(Icons.replay_10_rounded),
-        ),
-      ],
-    );
-  }
+  Widget displayAudioPlaybackOptions() {
+    return Consumer<AudioState>(builder: (context, audio, _) {
+      bool audioLoaded = audio.isLoaded;
 
-  void rewindAudio10s() {
-    Duration fpos = (player.position.position ?? Duration.zero) -
-        const Duration(seconds: 10);
-    seekToPos(fpos);
-  }
-
-  void forwardAudio10s() {
-    Duration fpos = (player.position.position ?? Duration.zero) +
-        const Duration(seconds: 10);
-    seekToPos(fpos);
-  }
-
-  void seekToPos(Duration pos) {
-    Duration total = player.position.duration ?? Duration.zero;
-    if (pos < Duration.zero) pos = Duration.zero;
-    if (pos > total) pos = total;
-    player.seek(pos);
-    player.positionController.add(player.position..position = pos);
-  }
-
-  void playOrPauseAudio() {
-    player.playOrPause();
-    setState(() => paused = !paused);
+      return Column(
+        children: [
+          IconButton(
+            onPressed: audioLoaded ? audio.togglePlayPause : null,
+            icon: audio.isPlaying
+                ? const Icon(Icons.pause_rounded)
+                : const Icon(Icons.play_arrow_rounded),
+          ),
+          IconButton(
+            onPressed:
+                audioLoaded ? () => audio.seekToPos(Duration.zero) : null,
+            icon: const Icon(Icons.fast_rewind_rounded),
+          ),
+          IconButton(
+            onPressed: audioLoaded ? audio.forward10s : null,
+            icon: const Icon(Icons.forward_10_rounded),
+          ),
+          IconButton(
+            onPressed: audioLoaded ? audio.rewind10s : null,
+            icon: const Icon(Icons.replay_10_rounded),
+          ),
+        ],
+      );
+    });
   }
 }
 
 class VideoSection extends StatefulWidget {
   const VideoSection({
     super.key,
-    required this.player,
-    this.subtitles,
-    this.backgroundSubs,
-    this.subStartTime,
   });
-
-  final Player player;
-  final List<Subtitle>? subtitles;
-  final List<Subtitle>? backgroundSubs;
-  final Duration? subStartTime;
 
   @override
   State<VideoSection> createState() => _VideoSectionState();
 }
 
 class _VideoSectionState extends State<VideoSection> {
-  ValueNotifier<String> charValue = ValueNotifier("none");
+  late ValueNotifier<String> charValue = ValueNotifier("none");
   CharacterColors charColors = CharacterColors();
   // TODO: Make user select subtitle display position
   int subsPerPage = 9;
   double subPosition = 6;
-  bool showSubs = false;
-  bool overlay = false;
 
   /// Denotes the index of the current background sub.
   /// -1 means that no background sub will be displayed.
@@ -213,31 +160,16 @@ class _VideoSectionState extends State<VideoSection> {
   @override
   void initState() {
     super.initState();
-    widget.player.positionStream.listen((e) {
-      if (widget.subStartTime == null) return;
-
-      Duration playerPos = e.position ?? Duration.zero;
-
-      toggleSubtitleDisplay(playerPos);
-
-      checkForBackgroundSub(playerPos);
-    });
+    Provider.of<AudioState>(context, listen: false)
+        .positionStream
+        .listen(checkForBackgroundSub);
   }
 
-  void toggleSubtitleDisplay(Duration playerPos) {
-    Duration subVisibleTime = widget.subStartTime! - const Duration(seconds: 1);
-    if (playerPos >= subVisibleTime && !overlay) {
-      setState(() => overlay = true);
-      Future.delayed(const Duration(milliseconds: 400), () {
-        charValue.value = widget.subtitles!.first.character;
-        setState(() => showSubs = true);
-      });
-    } else if (playerPos < subVisibleTime && overlay) {
-      setState(() => overlay = showSubs = false);
-    }
-  }
+  void checkForBackgroundSub(PositionState state) {
+    List<Subtitle> backgroundSubs =
+        Provider.of<SubtitleState>(context, listen: false).backgroundSubs ?? [];
+    Duration playerPos = state.position ?? Duration.zero;
 
-  void checkForBackgroundSub(Duration playerPos) {
     if (bgSubValue.value != null) {
       Duration start = bgSubValue.value!.start;
       Duration end = bgSubValue.value!.end;
@@ -245,16 +177,15 @@ class _VideoSectionState extends State<VideoSection> {
     }
 
     int bgSub = -1;
-    widget.backgroundSubs?.forEach((subtitle) {
+    for (int i = 0; i < backgroundSubs.length; i++) {
+      Subtitle subtitle = backgroundSubs[i];
       Duration start = subtitle.start - const Duration(milliseconds: 500);
       Duration end = subtitle.end + const Duration(milliseconds: 500);
 
-      if (start < playerPos && playerPos < end) {
-        bgSub = widget.backgroundSubs!.indexOf(subtitle);
-      }
-    });
+      if (start < playerPos && playerPos < end) bgSub = i;
+    }
 
-    Subtitle? newSub = bgSub != -1 ? widget.backgroundSubs![bgSub] : null;
+    Subtitle? newSub = bgSub != -1 ? backgroundSubs[bgSub] : null;
     if (newSub != bgSubValue.value) {
       bgSubValue.value = newSub;
     }
@@ -262,56 +193,76 @@ class _VideoSectionState extends State<VideoSection> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ImageState>(builder: (context, state, _) {
-      double subWidth = state.imageSize.width * 4 / 5;
+    ImageState imState = context.watch<ImageState>();
+    AudioState audioState = context.watch<AudioState>();
+    SubtitleState subtitleState = context.watch<SubtitleState>();
 
-      return AspectRatio(
-        aspectRatio: state.imageSize.aspectRatio,
-        child: FittedBox(
-          fit: BoxFit.cover,
-          child: SizedBox(
-            height: state.imageSize.height,
-            width: state.imageSize.width,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Image.file(state.image!),
-                AnimatedOpacity(
-                  duration: const Duration(milliseconds: 300),
-                  opacity: overlay ? 1.0 : 0.0,
-                  child: Container(
-                    color: Colors.black.withOpacity(0.6),
-                    child: showSubtitleHighlight(state.imageSize),
-                  ),
-                ),
-                if (showSubs)
-                  SizedBox(
-                    width: subWidth,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: SubtitleListView(
-                        onChange: (c) {
-                          charValue.value = c;
-                        },
-                        subtitles: widget.subtitles ?? [],
-                        positionStream: widget.player.positionStream,
-                        blurPreview: true,
-                        totalDivs: subsPerPage,
-                        width: subWidth,
-                        offset: subPosition.round() -
-                            ((subsPerPage + 1) / 2).round() +
-                            1,
-                      ),
+    Size imageSize = imState.imageSize;
+    double subWidth = imageSize.width * 4 / 5;
+    Duration subStartTime =
+        subtitleState.subtitles?.first.start ?? Duration.zero;
+
+    return AspectRatio(
+      aspectRatio: imageSize.aspectRatio,
+      child: FittedBox(
+        fit: BoxFit.cover,
+        child: SizedBox(
+          height: imageSize.height,
+          width: imageSize.width,
+          child: StreamBuilder<PositionState>(
+            stream: audioState.positionStream,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return Image.file(imState.image!);
+
+              Duration playerPos = snapshot.data!.position ?? Duration.zero;
+              Duration offset = playerPos - subStartTime;
+
+              bool overlay = offset > -const Duration(seconds: 1);
+              bool showSubs = offset > -const Duration(milliseconds: 500);
+
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  Image.file(imState.image!),
+                  AnimatedOpacity(
+                    duration: const Duration(milliseconds: 300),
+                    opacity: overlay ? 1.0 : 0.0,
+                    child: Container(
+                      color: Colors.black.withOpacity(0.6),
+                      child: showSubtitleHighlight(imageSize),
                     ),
                   ),
-                showBackgroundSub(state.imageSize),
-                displayPositon(),
-              ],
-            ),
+                  if (showSubs)
+                    SizedBox(
+                      width: subWidth,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: SubtitleListView(
+                          onChange: onSubtitleChange,
+                          blurPreview: true,
+                          totalDivs: subsPerPage,
+                          width: subWidth,
+                          offset: subPosition.round() -
+                              ((subsPerPage + 1) / 2).round() +
+                              1,
+                        ),
+                      ),
+                    ),
+                  showBackgroundSub(imageSize),
+                  displayPositon(),
+                ],
+              );
+            },
           ),
         ),
-      );
-    });
+      ),
+    );
+  }
+
+  void onSubtitleChange(int index) {
+    Subtitle currentSub =
+        Provider.of<SubtitleState>(context, listen: false).subtitles![index];
+    charValue.value = currentSub.character;
   }
 
   Widget showSubtitleHighlight(Size imageSize) {
@@ -399,7 +350,8 @@ class _VideoSectionState extends State<VideoSection> {
           borderRadius: BorderRadius.circular(100),
         ),
         child: StreamBuilder<PositionState>(
-          stream: widget.player.positionStream,
+          stream:
+              Provider.of<AudioState>(context, listen: false).positionStream,
           builder: (context, snapshot) {
             PositionState? state = snapshot.data;
             String position = state?.position.toString().substring(0, 7) ?? "-";
@@ -525,17 +477,13 @@ class SubtitleListView extends StatefulWidget {
   const SubtitleListView({
     super.key,
     required this.onChange,
-    required this.subtitles,
-    required this.positionStream,
     this.blurPreview = false,
     this.totalDivs = 7,
     this.offset = 1,
     this.width = double.infinity,
   });
 
-  final void Function(String character) onChange;
-  final List<Subtitle> subtitles;
-  final Stream<PositionState> positionStream;
+  final void Function(int index) onChange;
   final bool blurPreview;
   final int totalDivs;
   final int offset;
@@ -546,8 +494,10 @@ class SubtitleListView extends StatefulWidget {
 }
 
 class _SubtitleListViewState extends State<SubtitleListView> {
-  int currentSub = 0;
-
+  /// Current Subtitle Index
+  ValueNotifier<int> csIndex = ValueNotifier(0);
+  Subtitle? currentSub;
+  int numSubs = 0;
   late PageController _controller;
   late int offset;
 
@@ -555,14 +505,18 @@ class _SubtitleListViewState extends State<SubtitleListView> {
   void initState() {
     super.initState();
     _controller = PageController(viewportFraction: 1 / widget.totalDivs);
-    widget.positionStream.listen(onPositionChange);
+    Provider.of<AudioState>(context, listen: false)
+        .positionStream
+        .listen(onPositionChange);
     offset = widget.offset;
   }
 
   void onPositionChange(PositionState state) {
-    if (state.position == null) return;
-    int i = currentSub;
-    Subtitle sub = widget.subtitles[i];
+    List<Subtitle>? subtitles =
+        Provider.of<SubtitleState>(context, listen: false).subtitles;
+    if (state.position == null || subtitles == null) return;
+    int i = csIndex.value;
+    Subtitle sub = subtitles[i];
     Duration position = state.position! + const Duration(milliseconds: 500);
     if (position > state.duration!) position = state.duration!;
     if (position > sub.start && position <= sub.end) return;
@@ -570,16 +524,15 @@ class _SubtitleListViewState extends State<SubtitleListView> {
     if (position > sub.end) {
       do {
         i++;
-      } while (
-          i < widget.subtitles.length && widget.subtitles[i].start < position);
+      } while (i < subtitles.length && subtitles[i].start < position);
       i--;
     } else if (position < sub.start) {
       do {
         i--;
-      } while (i >= 0 && widget.subtitles[i].end > position);
+      } while (i >= 0 && subtitles[i].end > position);
       i++;
     }
-    if (currentSub != i) {
+    if (csIndex.value != i) {
       onPageChanged(i);
       _controller.animateToPage(
         i,
@@ -590,32 +543,40 @@ class _SubtitleListViewState extends State<SubtitleListView> {
   }
 
   void onPageChanged(int page) {
-    setState(() => currentSub = page);
-    if (page < widget.subtitles.length) {
-      widget.onChange(widget.subtitles[page].character);
+    csIndex.value = page;
+    if (page < numSubs) {
+      widget.onChange(page);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return PageView.custom(
-      controller: _controller,
-      scrollDirection: Axis.vertical,
-      onPageChanged: onPageChanged,
-      childrenDelegate: SliverChildBuilderDelegate(
-        (context, i) {
-          return i < offset
-              ? Container()
-              : SubtitleDisplay(
-                  widget.subtitles[i - offset].parsedData,
-                  character: widget.subtitles[i - offset].character,
-                  blur: widget.blurPreview ? i > currentSub + offset : false,
-                  current: i == currentSub + offset,
-                  width: widget.width,
-                );
-        },
-        childCount: widget.subtitles.length + offset,
-      ),
+    List<Subtitle> subtitles =
+        Provider.of<SubtitleState>(context).subtitles ?? [];
+    numSubs = subtitles.length;
+
+    return ValueListenableBuilder<int>(
+      valueListenable: csIndex,
+      builder: (context, sub, _) {
+        return PageView.custom(
+          controller: _controller,
+          scrollDirection: Axis.vertical,
+          onPageChanged: onPageChanged,
+          childrenDelegate: SliverChildBuilderDelegate(
+            (context, i) {
+              if (i < offset) return Container();
+              return SubtitleDisplay(
+                subtitles[i - offset].parsedData,
+                character: subtitles[i - offset].character,
+                blur: widget.blurPreview ? i > sub + offset : false,
+                current: i == sub + offset,
+                width: widget.width,
+              );
+            },
+            childCount: subtitles.length + offset,
+          ),
+        );
+      },
     );
   }
 }
@@ -656,11 +617,6 @@ class _SubtitleDisplayState extends State<SubtitleDisplay> {
       textScale = getTextScale(context);
     }
 
-    Text text = Text(
-      widget.text,
-      textScaleFactor: textScale,
-    );
-
     Widget child = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 5),
       child: AnimatedDefaultTextStyle(
@@ -677,7 +633,10 @@ class _SubtitleDisplayState extends State<SubtitleDisplay> {
           strokeWidth: 5,
           strokeJoin: StrokeJoin.round,
           strokeColor: Colors.black,
-          child: text,
+          child: Text(
+            widget.text,
+            textScaleFactor: textScale,
+          ),
         ),
       ),
     );
