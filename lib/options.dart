@@ -1,21 +1,68 @@
-import 'dart:io';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:provider/provider.dart';
+import 'package:dart_casing/dart_casing.dart';
 
 import 'state_management.dart';
 
 class OptionsPanel extends StatefulWidget {
-  const OptionsPanel({
-    super.key,
-  });
+  const OptionsPanel({super.key});
 
   @override
   State<OptionsPanel> createState() => _OptionsPanelState();
 }
 
-class _OptionsPanelState extends State<OptionsPanel> {
+class _OptionsPanelState extends State<OptionsPanel>
+    with SingleTickerProviderStateMixin {
+  late TabController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TabController(length: 2, vsync: this);
+  }
+
+  Widget displayTab(String text) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          color: Colors.black,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        TabBar(
+          controller: _controller,
+          tabs: [displayTab("Basic"), displayTab("Colors")],
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _controller,
+            children: const [MainOptionsTab(), ColorOptionsTab()],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class MainOptionsTab extends StatefulWidget {
+  const MainOptionsTab({super.key});
+
+  @override
+  State<MainOptionsTab> createState() => _MainOptionsTabState();
+}
+
+class _MainOptionsTabState extends State<MainOptionsTab> {
   bool loadingSubs = false;
   final TextEditingController _controller = TextEditingController();
 
@@ -25,7 +72,8 @@ class _OptionsPanelState extends State<OptionsPanel> {
     if (result == null) return;
 
     String? path = result.files.single.path;
-    if (path != null) state.setImageFile(path);
+    if (path == null) return;
+    state.setImageFile(path);
   }
 
   void pickSubtitleFile(SubtitleState state) async {
@@ -38,7 +86,9 @@ class _OptionsPanelState extends State<OptionsPanel> {
     }
 
     String? path = result.files.single.path;
-    if (path != null) await state.parseSubs(path);
+    if (path != null) {
+      await state.parseSubs(path);
+    }
 
     setState(() => loadingSubs = false);
   }
@@ -156,6 +206,99 @@ class _OptionsPanelState extends State<OptionsPanel> {
           ],
         ],
       ),
+    );
+  }
+}
+
+class ColorOptionsTab extends StatefulWidget {
+  const ColorOptionsTab({super.key});
+
+  @override
+  State<ColorOptionsTab> createState() => _ColorOptionsTabState();
+}
+
+class _ColorOptionsTabState extends State<ColorOptionsTab> {
+  @override
+  Widget build(BuildContext context) {
+    ColorsState colorsState = context.watch<ColorsState>();
+    List<String> characters =
+        context.select<SubtitleState, List<String>>((s) => s.characters);
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: TextButton(
+            onPressed: () => colorsState.loadColors(characters),
+            child: const Text("Load Default Colors"),
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            itemCount: characters.length,
+            itemBuilder: (context, i) {
+              Color color = colorsState.of(characters[i]);
+              Color cColor = colorsState.of(characters[i]);
+
+              String name = Casing.titleCase(characters[i]);
+
+              return ListTile(
+                title: Text(name),
+                leading: Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: Colors.black, width: 2),
+                  ),
+                ),
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        titlePadding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        contentPadding: const EdgeInsets.all(0),
+                        actions: [
+                          ElevatedButton(
+                              onPressed: () {}, child: const Text("Confirm"))
+                        ],
+                        title: Center(child: Text("Pick a Color for $name")),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: ColorPicker(
+                                pickerColor: cColor,
+                                colorPickerWidth: 250,
+                                onColorChanged: (c) => cColor = c,
+                                pickerAreaBorderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(2),
+                                  topRight: Radius.circular(2),
+                                ),
+                                enableAlpha: false,
+                              ),
+                            ),
+                            ColorPickerInput(
+                              cColor,
+                              (c) => cColor = c,
+                              enableAlpha: false,
+                              disable: false,
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

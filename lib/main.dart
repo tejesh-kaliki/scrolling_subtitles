@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
@@ -8,13 +7,13 @@ import 'package:bordered_text/bordered_text.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:gradient_borders/box_borders/gradient_box_border.dart';
 import 'package:provider/provider.dart';
 import 'package:subtitle/subtitle.dart';
 import 'package:dart_vlc/dart_vlc.dart';
 
 import 'extensions.dart';
 import 'options.dart';
-import 'utils.dart';
 import 'state_management.dart';
 
 void main() async {
@@ -32,6 +31,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => ImageState()),
         ChangeNotifierProvider(create: (context) => SubtitleState()),
         ChangeNotifierProvider(create: (context) => AudioState()),
+        ChangeNotifierProvider(create: (context) => ColorsState()),
       ],
       child: MaterialApp(
         title: 'Scrolling Subtitles',
@@ -54,52 +54,17 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    CharacterColors().loadDefault();
   }
-
-  // Future<void> parseSubs(String subPath) async {
-  //   SubtitleProvider subtitleProvider = SubtitleProvider.fromFile(
-  //     File(subPath),
-  //     type: SubtitleType.vtt,
-  //   );
-  //   SubtitleObject subtitleObject = await subtitleProvider.getSubtitle();
-  //   SubtitleParser parser = SubtitleParser(subtitleObject);
-
-  //   subtitles = List<Subtitle>.empty(growable: true);
-  //   backgroundSubs = List<Subtitle>.empty(growable: true);
-  //   parser.parsing().forEach((element) {
-  //     if (element.isBackgroundSub) {
-  //       backgroundSubs!.add(element);
-  //     } else {
-  //       subtitles!.add(element);
-  //     }
-  //   });
-
-  //   setState(() {});
-  // }
 
   @override
   Widget build(BuildContext context) {
-    File? image = context.select((ImageState s) => s.image);
-
     return Scaffold(
       body: Row(
         mainAxisSize: MainAxisSize.max,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           displayAudioPlaybackOptions(),
-          image == null
-              ? const AspectRatio(
-                  aspectRatio: 1,
-                  child: Center(
-                    child: Icon(
-                      Icons.add_photo_alternate_rounded,
-                      size: 300,
-                      color: Colors.grey,
-                    ),
-                  ),
-                )
-              : const VideoSection(),
+          const VideoSection(),
           const Expanded(child: OptionsPanel()),
         ],
       ),
@@ -138,17 +103,15 @@ class _MyHomePageState extends State<MyHomePage> {
 }
 
 class VideoSection extends StatefulWidget {
-  const VideoSection({
-    super.key,
-  });
+  const VideoSection({super.key});
 
   @override
   State<VideoSection> createState() => _VideoSectionState();
 }
 
 class _VideoSectionState extends State<VideoSection> {
-  late ValueNotifier<String> charValue = ValueNotifier("none");
-  CharacterColors charColors = CharacterColors();
+  late ValueNotifier<Subtitle?> subValue = ValueNotifier(null);
+
   // TODO: Make user select subtitle display position
   int subsPerPage = 9;
   double subPosition = 6;
@@ -170,37 +133,34 @@ class _VideoSectionState extends State<VideoSection> {
         Provider.of<SubtitleState>(context, listen: false).backgroundSubs ?? [];
     Duration playerPos = state.position ?? Duration.zero;
 
-    if (bgSubValue.value != null) {
-      Duration start = bgSubValue.value!.start;
-      Duration end = bgSubValue.value!.end;
-      if (start < playerPos && end > playerPos) return;
+    Subtitle? cSub = bgSubValue.value;
+    if (cSub != null && cSub.start < playerPos && cSub.end > playerPos) return;
+
+    Subtitle? finalSub;
+    for (Subtitle s in backgroundSubs) {
+      Duration start = s.start - const Duration(milliseconds: 500);
+      Duration end = s.end + const Duration(milliseconds: 500);
+
+      if (start < playerPos && playerPos < end) finalSub = s;
     }
 
-    int bgSub = -1;
-    for (int i = 0; i < backgroundSubs.length; i++) {
-      Subtitle subtitle = backgroundSubs[i];
-      Duration start = subtitle.start - const Duration(milliseconds: 500);
-      Duration end = subtitle.end + const Duration(milliseconds: 500);
-
-      if (start < playerPos && playerPos < end) bgSub = i;
-    }
-
-    Subtitle? newSub = bgSub != -1 ? backgroundSubs[bgSub] : null;
-    if (newSub != bgSubValue.value) {
-      bgSubValue.value = newSub;
-    }
+    if (cSub != finalSub) bgSubValue.value = finalSub;
   }
 
   @override
   Widget build(BuildContext context) {
     ImageState imState = context.watch<ImageState>();
     AudioState audioState = context.watch<AudioState>();
-    SubtitleState subtitleState = context.watch<SubtitleState>();
+    List<Subtitle>? subtitles =
+        context.select<SubtitleState, List<Subtitle>?>((s) => s.subtitles);
 
     Size imageSize = imState.imageSize;
     double subWidth = imageSize.width * 4 / 5;
-    Duration subStartTime =
-        subtitleState.subtitles?.first.start ?? Duration.zero;
+    Duration subStartTime = const Duration(days: 999);
+    if (subtitles != null && subtitles.isNotEmpty) {
+      subStartTime = subtitles.first.start;
+      subValue.value ??= subtitles.first;
+    }
 
     return AspectRatio(
       aspectRatio: imageSize.aspectRatio,
@@ -212,7 +172,7 @@ class _VideoSectionState extends State<VideoSection> {
           child: StreamBuilder<PositionState>(
             stream: audioState.positionStream,
             builder: (context, snapshot) {
-              if (!snapshot.hasData) return Image.file(imState.image!);
+              if (!snapshot.hasData) return displayImage(imState.image);
 
               Duration playerPos = snapshot.data!.position ?? Duration.zero;
               Duration offset = playerPos - subStartTime;
@@ -223,7 +183,7 @@ class _VideoSectionState extends State<VideoSection> {
               return Stack(
                 alignment: Alignment.center,
                 children: [
-                  Image.file(imState.image!),
+                  displayImage(imState.image),
                   AnimatedOpacity(
                     duration: const Duration(milliseconds: 300),
                     opacity: overlay ? 1.0 : 0.0,
@@ -232,8 +192,9 @@ class _VideoSectionState extends State<VideoSection> {
                       child: showSubtitleHighlight(imageSize),
                     ),
                   ),
-                  if (showSubs)
-                    SizedBox(
+                  Opacity(
+                    opacity: showSubs ? 1 : 0,
+                    child: SizedBox(
                       width: subWidth,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -248,6 +209,7 @@ class _VideoSectionState extends State<VideoSection> {
                         ),
                       ),
                     ),
+                  ),
                   showBackgroundSub(imageSize),
                   displayPositon(),
                 ],
@@ -259,23 +221,36 @@ class _VideoSectionState extends State<VideoSection> {
     );
   }
 
+  Widget displayImage(File? image) {
+    if (image == null) {
+      return const Center(
+        child: Icon(
+          Icons.add_photo_alternate_rounded,
+          size: 300,
+          color: Colors.grey,
+        ),
+      );
+    }
+    return Image.file(image);
+  }
+
   void onSubtitleChange(int index) {
     Subtitle currentSub =
         Provider.of<SubtitleState>(context, listen: false).subtitles![index];
-    charValue.value = currentSub.character;
+    subValue.value = currentSub;
   }
 
   Widget showSubtitleHighlight(Size imageSize) {
     return setPosAndHeight(
       pos: subPosition,
       subsPerPage: subsPerPage,
-      child: ValueListenableBuilder<String>(
-        valueListenable: charValue,
-        builder: (context, character, child) {
+      child: ValueListenableBuilder<Subtitle?>(
+        valueListenable: subValue,
+        builder: (context, subtitle, child) {
           double height = imageSize.height / subsPerPage;
 
           return SubtitleHighlight(
-            character: character,
+            subtitle: subtitle,
             height: height * 0.8,
             maxHeight: height,
           );
@@ -291,7 +266,6 @@ class _VideoSectionState extends State<VideoSection> {
         if (subtitle == null) return Container();
 
         double height = imageSize.height / subsPerPage;
-        String character = subtitle.character;
 
         return setPosAndHeight(
           pos: (subPosition + subsPerPage - 1) / 2,
@@ -302,7 +276,7 @@ class _VideoSectionState extends State<VideoSection> {
               alignment: Alignment.center,
               children: [
                 SubtitleHighlight(
-                  character: character,
+                  subtitle: subtitle,
                   height: height * 0.8,
                   maxHeight: height,
                 ),
@@ -310,7 +284,7 @@ class _VideoSectionState extends State<VideoSection> {
                   widthFactor: 4 / 5,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: SubtitleDisplay(subtitle.parsedData, current: true),
+                    child: SubtitleDisplay(subtitle, current: true),
                   ),
                 ),
               ],
@@ -369,25 +343,40 @@ class _VideoSectionState extends State<VideoSection> {
 }
 
 class SubtitleHighlight extends StatelessWidget {
-  SubtitleHighlight({
+  const SubtitleHighlight({
     super.key,
-    required this.character,
+    required this.subtitle,
     this.height = 80.0,
     this.maxHeight = double.infinity,
   });
 
-  final String character;
+  final Subtitle? subtitle;
   final double height;
   final double maxHeight;
-  final CharacterColors charColors = CharacterColors();
 
   @override
   Widget build(BuildContext context) {
-    Color color = charColors.of(character);
+    ColorsState colorsState = context.watch<ColorsState>();
+    List<String> characters = subtitle?.characters ?? [];
+    List<Color> colors = characters.map((e) => colorsState.of(e)).toList();
+    if (colors.isEmpty) colors.add(Colors.white);
+
+    BoxDecoration decoration;
+    LinearGradient gradient;
+    if (colors.length == 1) {
+      gradient = LinearGradient(colors: [colors.first, colors.first]);
+    } else {
+      gradient = LinearGradient(colors: colors);
+    }
+    decoration = BoxDecoration(
+      borderRadius: BorderRadius.circular(20),
+      border: GradientBoxBorder(gradient: gradient, width: 3),
+      gradient: gradient.scale(0.3),
+    );
 
     return Row(
       children: [
-        Flexible(fit: FlexFit.tight, child: SubtitlePointer(color: color)),
+        Flexible(fit: FlexFit.tight, child: SubtitlePointer(colors: colors)),
         Flexible(
           flex: 8,
           child: Stack(
@@ -397,20 +386,13 @@ class SubtitleHighlight extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
                 blur: 10,
                 colorOpacity: 0,
-                blurColor: color,
-                overlay: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: color, width: 3),
-                    color: color.withOpacity(0.3),
-                  ),
-                ),
+                blurColor: Colors.white,
+                overlay: Container(decoration: decoration),
                 child: Container(height: min(height, maxHeight)),
               ),
               Transform.translate(
                 offset: Offset(10, -height / 2),
-                child: CharacterName(character: character),
+                child: CharacterName(subtitle: subtitle),
               ),
             ],
           ),
@@ -421,51 +403,55 @@ class SubtitleHighlight extends StatelessWidget {
   }
 }
 
-class CharacterName extends StatefulWidget {
+class CharacterName extends StatelessWidget {
   const CharacterName({
     super.key,
-    required this.character,
+    required this.subtitle,
   });
 
-  final String character;
-
-  @override
-  State<CharacterName> createState() => _CharacterNameState();
-}
-
-class _CharacterNameState extends State<CharacterName> {
-  CharacterColors charColor = CharacterColors();
-
-  @override
-  void initState() {
-    super.initState();
-  }
+  final Subtitle? subtitle;
 
   @override
   Widget build(BuildContext context) {
-    if (widget.character == "none") return Container();
+    if (subtitle == null || subtitle!.speaker == "none") return Container();
+    String speaker = subtitle!.speaker;
 
-    Color color = charColor.of(widget.character);
+    ColorsState colorsState = context.watch<ColorsState>();
+    List<Color> colors =
+        subtitle!.characters.map((c) => colorsState.of(c)).toList();
+
+    LinearGradient gradient;
+    double luminance;
+    if (colors.length == 1) {
+      gradient = LinearGradient(colors: [colors[0], colors[0]]);
+      luminance = colors.first.getLightness();
+    } else {
+      gradient = LinearGradient(colors: colors);
+      luminance = colors
+          .reduce((a, b) => Color.lerp(a, b, 0.5) ?? Colors.white)
+          .getLightness();
+    }
+    BoxDecoration decoration = BoxDecoration(
+      gradient: gradient,
+      border: Border.all(
+        color: Colors.white70,
+        width: 2,
+        strokeAlign: BorderSide.strokeAlignOutside,
+      ),
+      borderRadius: BorderRadius.circular(100),
+    );
+
     return AnimatedContainer(
       key: const ValueKey<String>("Character Name"),
       duration: const Duration(milliseconds: 300),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color,
-        border: Border.all(
-          color: Colors.white70,
-          width: 2,
-          strokeAlign: BorderSide.strokeAlignOutside,
-        ),
-        borderRadius: BorderRadius.circular(100),
-      ),
+      decoration: decoration,
       child: AnimatedDefaultTextStyle(
         duration: const Duration(milliseconds: 300),
         style: GoogleFonts.acme(
-            color:
-                color.computeLuminance() < 0.3 ? Colors.white : Colors.black),
+            color: luminance < 0.5 ? Colors.white : Colors.black),
         child: Text(
-          widget.character.toUpperCase(),
+          speaker.toUpperCase(),
           textAlign: TextAlign.center,
         ),
       ),
@@ -566,8 +552,7 @@ class _SubtitleListViewState extends State<SubtitleListView> {
             (context, i) {
               if (i < offset) return Container();
               return SubtitleDisplay(
-                subtitles[i - offset].parsedData,
-                character: subtitles[i - offset].character,
+                subtitles[i - offset],
                 blur: widget.blurPreview ? i > sub + offset : false,
                 current: i == sub + offset,
                 width: widget.width,
@@ -581,67 +566,81 @@ class _SubtitleListViewState extends State<SubtitleListView> {
   }
 }
 
-class SubtitleDisplay extends StatefulWidget {
-  final String text;
-  final String char;
+class SubtitleDisplay extends StatelessWidget {
+  final Subtitle subtitle;
   final bool blur;
   final bool current;
   final double width;
 
   const SubtitleDisplay(
-    this.text, {
+    this.subtitle, {
     super.key,
-    String? character,
     this.blur = false,
     this.current = false,
     this.width = double.infinity,
-  }) : char = character ?? "none";
-
-  @override
-  State<SubtitleDisplay> createState() => _SubtitleDisplayState();
-}
-
-class _SubtitleDisplayState extends State<SubtitleDisplay> {
-  CharacterColors charColor = CharacterColors();
+  });
 
   @override
   Widget build(BuildContext context) {
-    Color color = widget.blur || widget.current
-        ? Colors.white
-        : charColor.of(widget.char);
+    ColorsState colorsState = context.watch<ColorsState>();
+    String text = subtitle.parsedData;
+    List<Color> colors;
+    if (blur || current) {
+      colors = [Colors.white];
+    } else {
+      colors = subtitle.characters
+          .map((c) => colorsState.of(c).clampLightness(0.625, 1.0))
+          .toList();
+    }
+    if (colors.isEmpty) colors = [Colors.white];
 
-    if (color.getLightness() < 0.625) color = color.withLightness(0.625);
+    TextStyle style;
+    if (colors.length == 1) {
+      style = GoogleFonts.poppins(
+        textStyle: TextStyle(
+          color: colors.first,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 1,
+          fontSize: 23,
+        ),
+      );
+    } else {
+      double w = min(text.length / 50, 1) * width;
+      style = GoogleFonts.poppins(
+        textStyle: TextStyle(
+          foreground: Paint()
+            ..shader = LinearGradient(colors: colors)
+                .createShader(Rect.fromLTWH(0, 0, w, 80)),
+          fontWeight: FontWeight.w500,
+          letterSpacing: 1,
+          fontSize: 23,
+        ),
+      );
+    }
 
     double textScale = 1.0;
-    if (widget.text.length > 100) {
-      textScale = getTextScale(context);
+    if (text.length > 100) {
+      textScale = getTextScale(text);
     }
 
     Widget child = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 5),
       child: AnimatedDefaultTextStyle(
         duration: const Duration(milliseconds: 300),
-        style: GoogleFonts.poppins(
-          textStyle: TextStyle(
-            color: color,
-            fontWeight: FontWeight.w500,
-            letterSpacing: 1,
-            fontSize: 23,
-          ),
-        ),
+        style: style,
         child: BorderedText(
           strokeWidth: 5,
           strokeJoin: StrokeJoin.round,
           strokeColor: Colors.black,
           child: Text(
-            widget.text,
+            text,
             textScaleFactor: textScale,
           ),
         ),
       ),
     );
 
-    if (widget.blur && widget.text.isNotEmpty) {
+    if (blur && text.isNotEmpty) {
       child = Blur(
         blurColor: Colors.white,
         blur: 5,
@@ -656,7 +655,7 @@ class _SubtitleDisplayState extends State<SubtitleDisplay> {
     );
   }
 
-  double getTextScale(BuildContext context) {
+  double getTextScale(String text) {
     TextStyle textStyle = GoogleFonts.poppins(
       textStyle: const TextStyle(
         fontWeight: FontWeight.w500,
@@ -665,11 +664,11 @@ class _SubtitleDisplayState extends State<SubtitleDisplay> {
       ),
     );
     ui.ParagraphConstraints constraints =
-        ui.ParagraphConstraints(width: widget.width - 110);
+        ui.ParagraphConstraints(width: width - 110);
 
     ui.ParagraphBuilder pb =
         ui.ParagraphBuilder(textStyle.getParagraphStyle(maxLines: 2))
-          ..addText(widget.text);
+          ..addText(text);
     ui.Paragraph paragraph = pb.build()..layout(constraints);
 
     return paragraph.didExceedMaxLines ? 0.75 : 1.0;
@@ -679,10 +678,10 @@ class _SubtitleDisplayState extends State<SubtitleDisplay> {
 class SubtitlePointer extends StatefulWidget {
   const SubtitlePointer({
     super.key,
-    this.color = Colors.white,
+    this.colors = const [Colors.white],
   });
 
-  final Color color;
+  final List<Color> colors;
 
   @override
   State<SubtitlePointer> createState() => _SubtitlePointerState();
@@ -722,12 +721,16 @@ class _SubtitlePointerState extends State<SubtitlePointer>
 
   @override
   Widget build(BuildContext context) {
-    Color color = widget.color;
-    if (color.getLightness() < 0.625) {
-      color = color.withLightness(0.625);
-    } else if (color.getLightness() > 0.94) {
-      color = color.withLightness(0.94);
+    List<Color> colors =
+        widget.colors.map((e) => e.clampLightness(0.625, 0.94)).toList();
+    Color color1, color2;
+    if (colors.length == 1)
+      color1 = color2 = colors.first;
+    else {
+      color1 = colors[0];
+      color2 = colors[1];
     }
+
     return Stack(
       alignment: Alignment.centerRight,
       children: [
@@ -739,7 +742,7 @@ class _SubtitlePointerState extends State<SubtitlePointer>
               angle: -1 / 2,
               child: Icon(
                 CupertinoIcons.triangle,
-                color: color,
+                color: color1,
               ),
             ),
           ),
@@ -752,7 +755,7 @@ class _SubtitlePointerState extends State<SubtitlePointer>
               angle: -1 / 2,
               child: Icon(
                 CupertinoIcons.triangle_fill,
-                color: color,
+                color: color2,
               ),
             ),
           ),

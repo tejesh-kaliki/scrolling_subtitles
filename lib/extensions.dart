@@ -1,10 +1,8 @@
-import 'dart:ui';
-
 import 'package:flutter/painting.dart';
 import 'package:subtitle/subtitle.dart';
 
 extension SubtitleEx on Subtitle {
-  RegExp get _characterNameRegex =>
+  static final RegExp _characterNameRegex =
       RegExp(r"^(?:([^:(]+)((?:\s*\([^)]+\))*)\s*:)?(.*)$");
 
   String get parsedData {
@@ -12,20 +10,27 @@ extension SubtitleEx on Subtitle {
     return match?.group(3)?.trim() ?? "";
   }
 
-  String get character {
+  List<String> get characters {
+    final RegExp splitRegx = RegExp(r"[+&]");
+    String text = speaker;
+    if (text.contains(splitRegx)) {
+      return text.split(splitRegx).map((e) => e.trim()).toList();
+    }
+    return [speaker];
+  }
+
+  String get speaker {
     RegExpMatch? match = _characterNameRegex.firstMatch(data.toLowerCase());
-    String name;
     if (match == null || match.group(1) == null) {
-      name = "none";
+      return "none";
     } else if (match.group(2) == null) {
-      name = match.group(1)!.trim();
+      return match.group(1)!.trim();
     } else if (!match.group(2)!.contains("(background)")) {
-      name = match.group(1)!.trim() + match.group(2)!.trim();
+      return match.group(1)!.trim() + match.group(2)!.trim();
     } else {
       String extraText = match.group(2)!.replaceFirst("(background)", "");
-      name = match.group(1)!.trim() + extraText.trim();
+      return match.group(1)!.trim() + extraText.trim();
     }
-    return name.toLowerCase();
   }
 
   bool get isBackgroundSub {
@@ -42,5 +47,17 @@ extension ColorLuminance on Color {
   Color withLightness(double lightness) {
     HSLColor hslColor = HSLColor.fromColor(this);
     return hslColor.withLightness(lightness).toColor();
+  }
+
+  Color clampLightness(double lower, double upper) {
+    Color color;
+    if (getLightness() < lower) {
+      color = withLightness(0.625);
+    } else if (getLightness() > upper) {
+      color = withLightness(0.94);
+    } else {
+      color = this;
+    }
+    return color;
   }
 }
