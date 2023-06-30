@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:blur/blur.dart';
 import 'package:bordered_text/bordered_text.dart';
+import 'package:dart_casing/dart_casing.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -113,11 +114,11 @@ class _VideoSectionState extends State<VideoSection> {
   late ValueNotifier<Subtitle?> subValue = ValueNotifier(null);
 
   // TODO: Make user select subtitle display position
-  int subsPerPage = 9;
-  double subPosition = 6;
+  int subsPerPage = 7;
+  double subPosition = 4;
 
-  /// Denotes the index of the current background sub.
-  /// -1 means that no background sub will be displayed.
+  /// Denotes the current background sub.
+  /// null means that no background sub will be displayed.
   ValueNotifier<Subtitle?> bgSubValue = ValueNotifier(null);
 
   @override
@@ -149,6 +150,9 @@ class _VideoSectionState extends State<VideoSection> {
 
   @override
   Widget build(BuildContext context) {
+    subsPerPage = 8;
+    subPosition = 5.5;
+
     ImageState imState = context.watch<ImageState>();
     AudioState audioState = context.watch<AudioState>();
     List<Subtitle>? subtitles =
@@ -188,10 +192,11 @@ class _VideoSectionState extends State<VideoSection> {
                     duration: const Duration(milliseconds: 300),
                     opacity: overlay ? 1.0 : 0.0,
                     child: Container(
-                      color: Colors.black.withOpacity(0.6),
+                      color: Colors.black.withOpacity(0.5),
                       child: showSubtitleHighlight(imageSize),
                     ),
                   ),
+                  // showPastSubtitleHighlight(imageSize),
                   Opacity(
                     opacity: showSubs ? 1 : 0,
                     child: SizedBox(
@@ -202,7 +207,7 @@ class _VideoSectionState extends State<VideoSection> {
                           onChange: onSubtitleChange,
                           blurPreview: true,
                           totalDivs: subsPerPage,
-                          width: subWidth,
+                          // width: subWidth,
                           offset: subPosition.round() -
                               ((subsPerPage + 1) / 2).round() +
                               1,
@@ -259,6 +264,36 @@ class _VideoSectionState extends State<VideoSection> {
     );
   }
 
+  Widget showPastSubtitleHighlight(Size imageSize) {
+    double offsetFromTop =
+        subPosition.remainder(1) * imageSize.height / subsPerPage;
+    double width = imageSize.width * 4 / 5;
+    double height = imageSize.height * subPosition.floor() / subsPerPage;
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Padding(
+        padding: EdgeInsets.only(top: offsetFromTop + 8),
+        child: Blur(
+          blur: 6,
+          blurColor: Colors.white,
+          colorOpacity: 0.2,
+          borderRadius: BorderRadius.circular(15),
+          overlay: Container(
+            decoration: BoxDecoration(
+              // color: Colors.white30,
+              border: Border.all(color: Colors.white70, width: 3),
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+          child: SizedBox(
+            width: width,
+            height: height - 22,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget showBackgroundSub(Size imageSize) {
     return ValueListenableBuilder<Subtitle?>(
       valueListenable: bgSubValue,
@@ -268,7 +303,7 @@ class _VideoSectionState extends State<VideoSection> {
         double height = imageSize.height / subsPerPage;
 
         return setPosAndHeight(
-          pos: (subPosition + subsPerPage - 1) / 2,
+          pos: subPosition + 1,
           subsPerPage: subsPerPage,
           child: Transform.scale(
             scale: 0.85,
@@ -361,17 +396,18 @@ class SubtitleHighlight extends StatelessWidget {
     List<Color> colors = characters.map((e) => colorsState.of(e)).toList();
     if (colors.isEmpty) colors.add(Colors.white);
 
-    BoxDecoration decoration;
+    BoxDecoration borderDecoration, fillDecoration;
     LinearGradient gradient;
     if (colors.length == 1) {
       gradient = LinearGradient(colors: [colors.first, colors.first]);
+      fillDecoration = BoxDecoration(color: colors.first.withOpacity(0.3));
     } else {
       gradient = LinearGradient(colors: colors);
+      fillDecoration = BoxDecoration(gradient: gradient.scale(0.3));
     }
-    decoration = BoxDecoration(
+    borderDecoration = BoxDecoration(
       borderRadius: BorderRadius.circular(20),
       border: GradientBoxBorder(gradient: gradient, width: 3),
-      gradient: gradient.scale(0.3),
     );
 
     return Row(
@@ -387,7 +423,13 @@ class SubtitleHighlight extends StatelessWidget {
                 blur: 10,
                 colorOpacity: 0,
                 blurColor: Colors.white,
-                overlay: Container(decoration: decoration),
+                overlay: Container(
+                  decoration: borderDecoration,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    decoration: fillDecoration,
+                  ),
+                ),
                 child: Container(height: min(height, maxHeight)),
               ),
               Transform.translate(
@@ -424,12 +466,12 @@ class CharacterName extends StatelessWidget {
     double luminance;
     if (colors.length == 1) {
       gradient = LinearGradient(colors: [colors[0], colors[0]]);
-      luminance = colors.first.getLightness();
+      luminance = colors.first.computeLuminance();
     } else {
       gradient = LinearGradient(colors: colors);
       luminance = colors
           .reduce((a, b) => Color.lerp(a, b, 0.5) ?? Colors.white)
-          .getLightness();
+          .computeLuminance();
     }
     BoxDecoration decoration = BoxDecoration(
       gradient: gradient,
@@ -441,17 +483,17 @@ class CharacterName extends StatelessWidget {
       borderRadius: BorderRadius.circular(100),
     );
 
+    Color textColor = luminance < 0.3 ? Colors.white : Colors.black;
     return AnimatedContainer(
       key: const ValueKey<String>("Character Name"),
       duration: const Duration(milliseconds: 300),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: decoration,
       child: AnimatedDefaultTextStyle(
         duration: const Duration(milliseconds: 300),
-        style: GoogleFonts.acme(
-            color: luminance < 0.5 ? Colors.white : Colors.black),
+        style: GoogleFonts.acme(color: textColor, fontSize: 22),
         child: Text(
-          speaker.toUpperCase(),
+          Casing.titleCase(speaker),
           textAlign: TextAlign.center,
         ),
       ),
@@ -466,14 +508,12 @@ class SubtitleListView extends StatefulWidget {
     this.blurPreview = false,
     this.totalDivs = 7,
     this.offset = 1,
-    this.width = double.infinity,
   });
 
   final void Function(int index) onChange;
   final bool blurPreview;
   final int totalDivs;
   final int offset;
-  final double width;
 
   @override
   State<SubtitleListView> createState() => _SubtitleListViewState();
@@ -555,7 +595,6 @@ class _SubtitleListViewState extends State<SubtitleListView> {
                 subtitles[i - offset],
                 blur: widget.blurPreview ? i > sub + offset : false,
                 current: i == sub + offset,
-                width: widget.width,
               );
             },
             childCount: subtitles.length + offset,
@@ -570,58 +609,49 @@ class SubtitleDisplay extends StatelessWidget {
   final Subtitle subtitle;
   final bool blur;
   final bool current;
-  final double width;
 
   const SubtitleDisplay(
     this.subtitle, {
     super.key,
     this.blur = false,
     this.current = false,
-    this.width = double.infinity,
   });
 
   @override
   Widget build(BuildContext context) {
     ColorsState colorsState = context.watch<ColorsState>();
+    double width =
+        context.select<ImageState, Size>((s) => s.imageSize).width * 4 / 5;
     String text = subtitle.parsedData;
     List<Color> colors;
     if (blur || current) {
       colors = [Colors.white];
     } else {
       colors = subtitle.characters
-          .map((c) => colorsState.of(c).clampLightness(0.625, 1.0))
+          .map((c) => colorsState.of(c).clampLightness(0.65, 1.0))
           .toList();
     }
     if (colors.isEmpty) colors = [Colors.white];
 
-    TextStyle style;
+    TextStyle style = GoogleFonts.poppins(
+      textStyle: const TextStyle(
+        fontWeight: FontWeight.w500,
+        letterSpacing: 1,
+        fontSize: 25,
+      ),
+    );
     if (colors.length == 1) {
-      style = GoogleFonts.poppins(
-        textStyle: TextStyle(
-          color: colors.first,
-          fontWeight: FontWeight.w500,
-          letterSpacing: 1,
-          fontSize: 23,
-        ),
-      );
+      style = style.copyWith(color: colors.first);
     } else {
       double w = min(text.length / 50, 1) * width;
-      style = GoogleFonts.poppins(
-        textStyle: TextStyle(
-          foreground: Paint()
-            ..shader = LinearGradient(colors: colors)
-                .createShader(Rect.fromLTWH(0, 0, w, 80)),
-          fontWeight: FontWeight.w500,
-          letterSpacing: 1,
-          fontSize: 23,
-        ),
+      style = style.copyWith(
+        foreground: Paint()
+          ..shader = LinearGradient(colors: colors)
+              .createShader(Rect.fromLTWH(0, 0, w, 80)),
       );
     }
 
-    double textScale = 1.0;
-    if (text.length > 100) {
-      textScale = getTextScale(text);
-    }
+    double textScale = text.length <= 100 ? 1.0 : getTextScale(text, width);
 
     Widget child = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 5),
@@ -631,7 +661,7 @@ class SubtitleDisplay extends StatelessWidget {
         child: BorderedText(
           strokeWidth: 5,
           strokeJoin: StrokeJoin.round,
-          strokeColor: Colors.black,
+          strokeColor: Colors.black.withOpacity(0.75),
           child: Text(
             text,
             textScaleFactor: textScale,
@@ -655,23 +685,26 @@ class SubtitleDisplay extends StatelessWidget {
     );
   }
 
-  double getTextScale(String text) {
+  double getTextScale(String text, double width) {
     TextStyle textStyle = GoogleFonts.poppins(
       textStyle: const TextStyle(
         fontWeight: FontWeight.w500,
         letterSpacing: 1,
-        fontSize: 18,
+        fontSize: 25,
       ),
     );
     ui.ParagraphConstraints constraints =
-        ui.ParagraphConstraints(width: width - 110);
+        ui.ParagraphConstraints(width: width - 100);
 
     ui.ParagraphBuilder pb =
         ui.ParagraphBuilder(textStyle.getParagraphStyle(maxLines: 2))
           ..addText(text);
     ui.Paragraph paragraph = pb.build()..layout(constraints);
 
-    return paragraph.didExceedMaxLines ? 0.75 : 1.0;
+    if (paragraph.didExceedMaxLines) {
+      return 0.9;
+    }
+    return 1.0;
   }
 }
 
@@ -724,9 +757,9 @@ class _SubtitlePointerState extends State<SubtitlePointer>
     List<Color> colors =
         widget.colors.map((e) => e.clampLightness(0.625, 0.94)).toList();
     Color color1, color2;
-    if (colors.length == 1)
+    if (colors.length == 1) {
       color1 = color2 = colors.first;
-    else {
+    } else {
       color1 = colors[0];
       color2 = colors[1];
     }

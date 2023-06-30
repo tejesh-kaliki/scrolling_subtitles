@@ -52,9 +52,9 @@ extension ColorLuminance on Color {
   Color clampLightness(double lower, double upper) {
     Color color;
     if (getLightness() < lower) {
-      color = withLightness(0.625);
+      color = withLightness(lower);
     } else if (getLightness() > upper) {
-      color = withLightness(0.94);
+      color = withLightness(upper);
     } else {
       color = this;
     }

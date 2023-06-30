@@ -111,7 +111,9 @@ class _MainOptionsTabState extends State<MainOptionsTab> {
     int m = n >= 2 ? int.parse(match.group(n - 1) ?? "0") : 0;
     int h = n >= 3 ? int.parse(match.group(n - 2) ?? "0") : 0;
     Duration pos = Duration(seconds: s, minutes: m, hours: h);
-    context.read<AudioState>().seekToPos(pos);
+    context.read<AudioState>()
+      ..seekToPos(pos)
+      ..pause();
   }
 
   String displayPath(String path) {
@@ -238,7 +240,6 @@ class _ColorOptionsTabState extends State<ColorOptionsTab> {
             itemCount: characters.length,
             itemBuilder: (context, i) {
               Color color = colorsState.of(characters[i]);
-              Color cColor = colorsState.of(characters[i]);
 
               String name = Casing.titleCase(characters[i]);
 
@@ -257,13 +258,22 @@ class _ColorOptionsTabState extends State<ColorOptionsTab> {
                   showDialog(
                     context: context,
                     builder: (BuildContext context) {
+                      ColorsState colorsState = context.watch<ColorsState>();
+                      Color cColor = colorsState.of(characters[i]);
+
                       return AlertDialog(
                         titlePadding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 5),
                         contentPadding: const EdgeInsets.all(0),
                         actions: [
                           ElevatedButton(
-                              onPressed: () {}, child: const Text("Confirm"))
+                            onPressed: () {
+                              colorsState.setCharacterColor(
+                                  name.toLowerCase(), cColor);
+                              Navigator.of(context).pop();
+                            },
+                            child: const Text("Confirm"),
+                          )
                         ],
                         title: Center(child: Text("Pick a Color for $name")),
                         content: Column(
@@ -273,18 +283,14 @@ class _ColorOptionsTabState extends State<ColorOptionsTab> {
                               padding: const EdgeInsets.all(10),
                               child: ColorPicker(
                                 pickerColor: cColor,
-                                colorPickerWidth: 250,
-                                onColorChanged: (c) => cColor = c,
-                                pickerAreaBorderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(2),
-                                  topRight: Radius.circular(2),
-                                ),
+                                onColorChanged: (c) =>
+                                    setState(() => cColor = c),
                                 enableAlpha: false,
                               ),
                             ),
                             ColorPickerInput(
                               cColor,
-                              (c) => cColor = c,
+                              (c) => setState(() => cColor = c),
                               enableAlpha: false,
                               disable: false,
                             ),

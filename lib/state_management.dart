@@ -104,6 +104,14 @@ class AudioState extends ChangeNotifier {
     _paused = !_paused;
     notifyListeners();
   }
+
+  void pause() {
+    if (!_paused) togglePlayPause();
+  }
+
+  void play() {
+    if (_paused) togglePlayPause();
+  }
 }
 
 class ColorsState extends ChangeNotifier {
@@ -160,6 +168,12 @@ class ColorsState extends ChangeNotifier {
     "effa": Colors.green.shade200,
     "veronica": const Color(0xffFCAE91),
     "black-clad man": Colors.grey.shade800,
+    "hirschur": const Color(0xff6600ff),
+    "fraulram": const Color(0xffcc99ff),
+    "otto": const Color(0xffcc6600),
+    "corinna": const Color(0xff66ff66),
+    "mark": const Color(0xff996633),
+    "gustav": const Color(0xfffff4c0),
   };
   final Map<String, Color> _activeColors = {};
 
@@ -174,6 +188,11 @@ class ColorsState extends ChangeNotifier {
     for (String character in characters) {
       _activeColors[character] = _defaultColors[character] ?? Colors.white;
     }
+    notifyListeners();
+  }
+
+  void setCharacterColor(String character, Color color) {
+    _activeColors[character] = color;
     notifyListeners();
   }
 }
