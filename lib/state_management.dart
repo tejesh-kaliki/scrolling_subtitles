@@ -7,6 +7,16 @@ import 'package:subtitle/subtitle.dart';
 
 import 'extensions.dart';
 
+class OptionsState extends ChangeNotifier {
+  Duration _subDelay = const Duration(milliseconds: 500);
+
+  Duration get subtitleDelay => _subDelay;
+  set subtitleDelay(Duration delay) {
+    _subDelay = delay;
+    notifyListeners();
+  }
+}
+
 class ImageState extends ChangeNotifier {
   File? _imageFile;
   Size _imageSize = const Size.square(1080);

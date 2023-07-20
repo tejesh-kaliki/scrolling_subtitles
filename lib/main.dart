@@ -29,6 +29,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (context) => OptionsState()),
         ChangeNotifierProvider(create: (context) => ImageState()),
         ChangeNotifierProvider(create: (context) => SubtitleState()),
         ChangeNotifierProvider(create: (context) => AudioState()),
@@ -39,6 +40,8 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           primarySwatch: Colors.teal,
         ),
+        darkTheme: ThemeData.dark(),
+        themeMode: ThemeMode.dark,
         home: const MyHomePage(),
       ),
     );
@@ -132,6 +135,8 @@ class _VideoSectionState extends State<VideoSection> {
   void checkForBackgroundSub(PositionState state) {
     List<Subtitle> backgroundSubs =
         Provider.of<SubtitleState>(context, listen: false).backgroundSubs ?? [];
+    Duration subtitleDelay =
+        Provider.of<OptionsState>(context, listen: false).subtitleDelay;
     Duration playerPos = state.position ?? Duration.zero;
 
     Subtitle? cSub = bgSubValue.value;
@@ -139,8 +144,8 @@ class _VideoSectionState extends State<VideoSection> {
 
     Subtitle? finalSub;
     for (Subtitle s in backgroundSubs) {
-      Duration start = s.start - const Duration(milliseconds: 500);
-      Duration end = s.end + const Duration(milliseconds: 500);
+      Duration start = s.start - subtitleDelay;
+      Duration end = s.end + subtitleDelay;
 
       if (start < playerPos && playerPos < end) finalSub = s;
     }
@@ -157,6 +162,8 @@ class _VideoSectionState extends State<VideoSection> {
     AudioState audioState = context.watch<AudioState>();
     List<Subtitle>? subtitles =
         context.select<SubtitleState, List<Subtitle>?>((s) => s.subtitles);
+    Duration subtitleDelay =
+        context.select<OptionsState, Duration>((s) => s.subtitleDelay);
 
     Size imageSize = imState.imageSize;
     double subWidth = imageSize.width * 4 / 5;
@@ -181,8 +188,9 @@ class _VideoSectionState extends State<VideoSection> {
               Duration playerPos = snapshot.data!.position ?? Duration.zero;
               Duration offset = playerPos - subStartTime;
 
-              bool overlay = offset > -const Duration(seconds: 1);
-              bool showSubs = offset > -const Duration(milliseconds: 500);
+              bool overlay =
+                  offset > -subtitleDelay - const Duration(milliseconds: 500);
+              bool showSubs = offset > -subtitleDelay;
 
               return Stack(
                 alignment: Alignment.center,
@@ -207,7 +215,6 @@ class _VideoSectionState extends State<VideoSection> {
                           onChange: onSubtitleChange,
                           blurPreview: true,
                           totalDivs: subsPerPage,
-                          // width: subWidth,
                           offset: subPosition.round() -
                               ((subsPerPage + 1) / 2).round() +
                               1,
@@ -540,10 +547,12 @@ class _SubtitleListViewState extends State<SubtitleListView> {
   void onPositionChange(PositionState state) {
     List<Subtitle>? subtitles =
         Provider.of<SubtitleState>(context, listen: false).subtitles;
+    Duration subDelay =
+        Provider.of<OptionsState>(context, listen: false).subtitleDelay;
     if (state.position == null || subtitles == null) return;
     int i = csIndex.value;
     Subtitle sub = subtitles[i];
-    Duration position = state.position! + const Duration(milliseconds: 500);
+    Duration position = state.position! + subDelay;
     if (position > state.duration!) position = state.duration!;
     if (position > sub.start && position <= sub.end) return;
 
@@ -625,7 +634,7 @@ class SubtitleDisplay extends StatelessWidget {
     String text = subtitle.parsedData;
     List<Color> colors;
     if (blur || current) {
-      colors = [Colors.white];
+      colors = [];
     } else {
       colors = subtitle.characters
           .map((c) => colorsState.of(c).clampLightness(0.65, 1.0))
@@ -647,7 +656,7 @@ class SubtitleDisplay extends StatelessWidget {
       style = style.copyWith(
         foreground: Paint()
           ..shader = LinearGradient(colors: colors)
-              .createShader(Rect.fromLTWH(0, 0, w, 80)),
+              .createShader(Rect.fromLTWH(0, 0, w, 100)),
       );
     }
 

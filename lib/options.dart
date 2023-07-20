@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:provider/provider.dart';
 import 'package:dart_casing/dart_casing.dart';
+import 'package:scrolling_subtitles/main.dart';
 
 import 'state_management.dart';
 
@@ -24,14 +25,14 @@ class _OptionsPanelState extends State<OptionsPanel>
   }
 
   Widget displayTab(String text) {
+    Color textColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
     return Container(
       padding: const EdgeInsets.all(10),
       child: Text(
         text,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          color: Colors.black,
-        ),
+        style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
       ),
     );
   }
@@ -64,7 +65,6 @@ class MainOptionsTab extends StatefulWidget {
 
 class _MainOptionsTabState extends State<MainOptionsTab> {
   bool loadingSubs = false;
-  final TextEditingController _controller = TextEditingController();
 
   void pickImageFile(ImageState state) async {
     FilePickerResult? result =
@@ -119,6 +119,14 @@ class _MainOptionsTabState extends State<MainOptionsTab> {
   String displayPath(String path) {
     String fileName = path.split(RegExp(r"[/\\]")).last;
     return "../$fileName";
+  }
+
+  void setSubDelay(String delayms) {
+    int dms = int.parse(delayms);
+    int seconds = (dms / 1000).floor();
+    int milliseconds = dms % 1000;
+    context.read<OptionsState>().subtitleDelay =
+        Duration(seconds: seconds, milliseconds: milliseconds);
   }
 
   @override
@@ -194,7 +202,6 @@ class _MainOptionsTabState extends State<MainOptionsTab> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: TextField(
-                    controller: _controller,
                     onSubmitted: seekToPos,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
@@ -206,6 +213,23 @@ class _MainOptionsTabState extends State<MainOptionsTab> {
             ),
             const Divider(),
           ],
+          Row(
+            children: [
+              const Text("Subtitle Delay (in ms):"),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  onSubmitted: setSubDelay,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: "500",
+                    suffixText: "ms",
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Divider(),
         ],
       ),
     );
