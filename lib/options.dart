@@ -130,6 +130,11 @@ class _MainOptionsTabState extends State<MainOptionsTab> {
   }
 
   @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
     ImageState imageState = context.watch<ImageState>();
     AudioState audioState = context.watch<AudioState>();
@@ -141,6 +146,7 @@ class _MainOptionsTabState extends State<MainOptionsTab> {
     return Padding(
       padding: const EdgeInsets.all(8),
       child: ListView(
+        primary: false,
         children: [
           Column(
             children: [

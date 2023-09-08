@@ -7,18 +7,24 @@ import 'package:bordered_text/bordered_text.dart';
 import 'package:dart_casing/dart_casing.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:gradient_borders/box_borders/gradient_box_border.dart';
 import 'package:provider/provider.dart';
 import 'package:subtitle/subtitle.dart';
 import 'package:dart_vlc/dart_vlc.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'extensions.dart';
+import 'intents.dart';
 import 'options.dart';
 import 'state_management.dart';
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await windowManager.ensureInitialized();
   DartVLC.initialize();
+
   runApp(const MyApp());
 }
 
@@ -55,6 +61,9 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  FocusNode mainFocusNode = FocusNode();
+  bool showJustVideo = false;
+
   @override
   void initState() {
     super.initState();
@@ -63,14 +72,45 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Row(
-        mainAxisSize: MainAxisSize.max,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          displayAudioPlaybackOptions(),
-          const VideoSection(),
-          const Expanded(child: OptionsPanel()),
-        ],
+      body: FocusableActionDetector(
+        autofocus: true,
+        focusNode: mainFocusNode,
+        shortcuts: {
+          const SingleActivator(LogicalKeyboardKey.space): PausePlayIntent(),
+          const SingleActivator(LogicalKeyboardKey.arrowRight): ForwardIntent(),
+          const SingleActivator(LogicalKeyboardKey.arrowLeft): RewindIntent(),
+          const SingleActivator(LogicalKeyboardKey.keyF):
+              FitWindowToCanvasIntent(),
+        },
+        actions: {
+          PausePlayIntent: CallbackAction(
+              onInvoke: (e) => audioActionInvoke(PausePlayIntent)),
+          ForwardIntent:
+              CallbackAction(onInvoke: (e) => audioActionInvoke(ForwardIntent)),
+          RewindIntent:
+              CallbackAction(onInvoke: (e) => audioActionInvoke(RewindIntent)),
+          FitWindowToCanvasIntent: CallbackAction(onInvoke: (e) => fitWindow()),
+        },
+        onFocusChange: (v) {
+          if (!mainFocusNode.hasFocus) {
+            mainFocusNode.requestFocus();
+          }
+        },
+        child: Row(
+          // mainAxisSize: MainAxisSize.max,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Visibility(
+              visible: !showJustVideo,
+              child: displayAudioPlaybackOptions(),
+            ),
+            const VideoSection(),
+            Visibility(
+              visible: !showJustVideo,
+              child: const Expanded(child: OptionsPanel()),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -103,6 +143,47 @@ class _MyHomePageState extends State<MyHomePage> {
         ],
       );
     });
+  }
+
+  void displayBounds() async {
+    Rect r = await windowManager.getBounds();
+    print(r.size);
+  }
+
+  void fitWindow() async {
+    if (!showJustVideo) {
+      setState(() => showJustVideo = true);
+      Size size = Provider.of<ImageState>(context, listen: false).imageSize;
+      await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+      await windowManager.setSize(Size(size.width + 4, size.height));
+    } else {
+      await windowManager.setTitleBarStyle(TitleBarStyle.normal);
+      await windowManager.setSize(const Size(1280, 720));
+      setState(() => showJustVideo = false);
+    }
+  }
+
+  bool audioActionInvoke(Type intent) {
+    if (FocusManager.instance.primaryFocus == mainFocusNode) {
+      AudioState audio = Provider.of<AudioState>(context, listen: false);
+      if (audio.isLoaded) {
+        switch (intent) {
+          case PausePlayIntent:
+            audio.togglePlayPause();
+            break;
+          case ForwardIntent:
+            audio.forward10s();
+            break;
+          case RewindIntent:
+            audio.rewind10s();
+            break;
+          default:
+            return false;
+        }
+        return true;
+      }
+    }
+    return false;
   }
 }
 
@@ -204,7 +285,6 @@ class _VideoSectionState extends State<VideoSection> {
                       child: showSubtitleHighlight(imageSize),
                     ),
                   ),
-                  // showPastSubtitleHighlight(imageSize),
                   Opacity(
                     opacity: showSubs ? 1 : 0,
                     child: SizedBox(
@@ -267,36 +347,6 @@ class _VideoSectionState extends State<VideoSection> {
             maxHeight: height,
           );
         },
-      ),
-    );
-  }
-
-  Widget showPastSubtitleHighlight(Size imageSize) {
-    double offsetFromTop =
-        subPosition.remainder(1) * imageSize.height / subsPerPage;
-    double width = imageSize.width * 4 / 5;
-    double height = imageSize.height * subPosition.floor() / subsPerPage;
-    return Align(
-      alignment: Alignment.topCenter,
-      child: Padding(
-        padding: EdgeInsets.only(top: offsetFromTop + 8),
-        child: Blur(
-          blur: 6,
-          blurColor: Colors.white,
-          colorOpacity: 0.2,
-          borderRadius: BorderRadius.circular(15),
-          overlay: Container(
-            decoration: BoxDecoration(
-              // color: Colors.white30,
-              border: Border.all(color: Colors.white70, width: 3),
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-          child: SizedBox(
-            width: width,
-            height: height - 22,
-          ),
-        ),
       ),
     );
   }
@@ -647,6 +697,7 @@ class SubtitleDisplay extends StatelessWidget {
         fontWeight: FontWeight.w500,
         letterSpacing: 1,
         fontSize: 25,
+        height: 1.1,
       ),
     );
     if (colors.length == 1) {
@@ -663,7 +714,7 @@ class SubtitleDisplay extends StatelessWidget {
     double textScale = text.length <= 100 ? 1.0 : getTextScale(text, width);
 
     Widget child = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 5),
+      padding: const EdgeInsets.only(left: 5, right: 5, top: 6),
       child: AnimatedDefaultTextStyle(
         duration: const Duration(milliseconds: 300),
         style: style,
@@ -711,7 +762,7 @@ class SubtitleDisplay extends StatelessWidget {
     ui.Paragraph paragraph = pb.build()..layout(constraints);
 
     if (paragraph.didExceedMaxLines) {
-      return 0.9;
+      return 0.92;
     }
     return 1.0;
   }

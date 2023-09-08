@@ -174,7 +174,7 @@ class ColorsState extends ChangeNotifier {
     "lamprecht": const Color(0xffFCAE91),
     "bezewanst": const Color(0xffFB6A4A),
     "bindewald": const Color.fromARGB(255, 255, 201, 176),
-    "gunther": Colors.green.shade600,
+    "gunther": Colors.blue.shade300,
     "effa": Colors.green.shade200,
     "veronica": const Color(0xffFCAE91),
     "black-clad man": Colors.grey.shade800,
