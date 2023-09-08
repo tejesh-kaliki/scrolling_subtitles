@@ -145,11 +145,6 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  void displayBounds() async {
-    Rect r = await windowManager.getBounds();
-    print(r.size);
-  }
-
   void fitWindow() async {
     if (!showJustVideo) {
       setState(() => showJustVideo = true);
