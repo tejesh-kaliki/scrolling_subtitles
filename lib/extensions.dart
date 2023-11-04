@@ -1,3 +1,4 @@
+import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/painting.dart';
 import 'package:subtitle/subtitle.dart';
 
@@ -60,4 +61,12 @@ extension ColorLuminance on Color {
     }
     return color;
   }
+}
+
+extension HexColor on Color {
+  static Color fromHex(String hex) {
+    return Color(int.parse("FF${hex.toUpperCase()}", radix: 16));
+  }
+
+  String toJson() => hex;
 }

@@ -163,13 +163,13 @@ class _MyHomePageState extends State<MyHomePage> {
       AudioState audio = Provider.of<AudioState>(context, listen: false);
       if (audio.isLoaded) {
         switch (intent) {
-          case PausePlayIntent:
+          case const (PausePlayIntent):
             audio.togglePlayPause();
             break;
-          case ForwardIntent:
+          case const (ForwardIntent):
             audio.forward10s();
             break;
-          case RewindIntent:
+          case const (RewindIntent):
             audio.rewind10s();
             break;
           default:

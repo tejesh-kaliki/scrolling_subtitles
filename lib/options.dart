@@ -1,6 +1,6 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:flex_color_picker/flex_color_picker.dart';
+import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 import 'package:dart_casing/dart_casing.dart';
 
@@ -65,42 +65,6 @@ class MainOptionsTab extends StatefulWidget {
 class _MainOptionsTabState extends State<MainOptionsTab> {
   bool loadingSubs = false;
 
-  void pickImageFile(ImageState state) async {
-    FilePickerResult? result =
-        await FilePicker.platform.pickFiles(type: FileType.image);
-    if (result == null) return;
-
-    String? path = result.files.single.path;
-    if (path == null) return;
-    state.setImageFile(path);
-  }
-
-  void pickSubtitleFile(SubtitleState state) async {
-    setState(() => loadingSubs = true);
-    FilePickerResult? result = await FilePicker.platform
-        .pickFiles(type: FileType.custom, allowedExtensions: ["vtt"]);
-    if (result == null) {
-      setState(() => loadingSubs = false);
-      return;
-    }
-
-    String? path = result.files.single.path;
-    if (path != null) {
-      await state.parseSubs(path);
-    }
-
-    setState(() => loadingSubs = false);
-  }
-
-  void pickAudioFile(AudioState state) async {
-    FilePickerResult? result =
-        await FilePicker.platform.pickFiles(type: FileType.any);
-    if (result == null) return;
-
-    String? path = result.files.single.path;
-    if (path != null) state.loadAudio(path);
-  }
-
   void seekToPos(String time) {
     RegExp timeRegex = RegExp(r"^(?:(\d+):){0,2}(\d+)$");
     RegExpMatch? match = timeRegex.firstMatch(time);
@@ -155,7 +119,7 @@ class _MainOptionsTabState extends State<MainOptionsTab> {
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: TextButton(
-                  onPressed: () => pickImageFile(imageState),
+                  onPressed: () => imageState.pickFile(),
                   child: Text(imagePath == null
                       ? "Choose an Image"
                       : "Choose another Image"),
@@ -174,7 +138,11 @@ class _MainOptionsTabState extends State<MainOptionsTab> {
                   : Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: TextButton(
-                        onPressed: () => pickSubtitleFile(subtitleState),
+                        onPressed: () async {
+                          setState(() => loadingSubs = true);
+                          await subtitleState.pickFile();
+                          setState(() => loadingSubs = false);
+                        },
                         child: Text(subtitlePath == null
                             ? "Choose the subtitle file"
                             : "Choose another subtitle file"),
@@ -191,7 +159,7 @@ class _MainOptionsTabState extends State<MainOptionsTab> {
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: TextButton(
-                  onPressed: () => pickAudioFile(context.read<AudioState>()),
+                  onPressed: () => audioState.pickFile(),
                   child: Text(audioPath == null
                       ? "Choose the audio file"
                       : "Choose another audio file"),
@@ -257,13 +225,21 @@ class _ColorOptionsTabState extends State<ColorOptionsTab> {
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: TextButton(
-            onPressed: () => colorsState.loadColors(characters),
-            child: const Text("Load Default Colors"),
-          ),
+        TextButton(
+          onPressed: () => colorsState.loadColors(characters),
+          child: const Text("Load Default Colors"),
         ),
+        const Gap(5.0),
+        TextButton(
+          onPressed: () async => await colorsState.saveToFile(),
+          child: const Text("Save to file"),
+        ),
+        const Gap(5.0),
+        TextButton(
+          onPressed: () async => await colorsState.pickFile(characters),
+          child: const Text("Load from file"),
+        ),
+        const Gap(5.0),
         Expanded(
           child: ListView.builder(
             itemCount: characters.length,
@@ -283,51 +259,9 @@ class _ColorOptionsTabState extends State<ColorOptionsTab> {
                     border: Border.all(color: Colors.black, width: 2),
                   ),
                 ),
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      ColorsState colorsState = context.watch<ColorsState>();
-                      Color cColor = colorsState.of(characters[i]);
-
-                      return AlertDialog(
-                        titlePadding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        contentPadding: const EdgeInsets.all(0),
-                        actions: [
-                          ElevatedButton(
-                            onPressed: () {
-                              colorsState.setCharacterColor(
-                                  name.toLowerCase(), cColor);
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text("Confirm"),
-                          )
-                        ],
-                        title: Center(child: Text("Pick a Color for $name")),
-                        content: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(10),
-                              child: ColorPicker(
-                                pickerColor: cColor,
-                                onColorChanged: (c) =>
-                                    setState(() => cColor = c),
-                                enableAlpha: false,
-                              ),
-                            ),
-                            ColorPickerInput(
-                              cColor,
-                              (c) => setState(() => cColor = c),
-                              enableAlpha: false,
-                              disable: false,
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  );
+                onTap: () async {
+                  Color newColor = await colorPickerDialog(color);
+                  colorsState.setCharacterColor(characters[i], newColor);
                 },
               );
             },
@@ -335,5 +269,52 @@ class _ColorOptionsTabState extends State<ColorOptionsTab> {
         ),
       ],
     );
+  }
+
+  Future<Color> colorPickerDialog(Color color) async {
+    Color dialogPickerColor = color;
+    await ColorPicker(
+      color: color,
+      onColorChanged: (Color c) => dialogPickerColor = c,
+      heading: Text(
+        'Select color',
+        style: Theme.of(context).textTheme.titleMedium,
+      ),
+      subheading: Text(
+        'Select color shade',
+        style: Theme.of(context).textTheme.titleMedium,
+      ),
+      wheelSubheading: Text(
+        'Selected color and its shades',
+        style: Theme.of(context).textTheme.titleMedium,
+      ),
+      showMaterialName: true,
+      showColorName: true,
+      showColorCode: true,
+      colorCodeReadOnly: false,
+      materialNameTextStyle: Theme.of(context).textTheme.bodySmall,
+      colorNameTextStyle: Theme.of(context).textTheme.bodySmall,
+      colorCodeTextStyle: Theme.of(context).textTheme.bodyMedium,
+      colorCodePrefixStyle: Theme.of(context).textTheme.bodySmall,
+      selectedPickerTypeColor: Theme.of(context).colorScheme.primary,
+      copyPasteBehavior: const ColorPickerCopyPasteBehavior(
+        parseShortHexCode: true,
+        pasteButton: true,
+        copyButton: true,
+        copyFormat: ColorPickerCopyFormat.hexRRGGBB,
+      ),
+      pickersEnabled: const <ColorPickerType, bool>{
+        ColorPickerType.both: false,
+        ColorPickerType.primary: false,
+        ColorPickerType.accent: false,
+        ColorPickerType.bw: false,
+        ColorPickerType.custom: true,
+        ColorPickerType.wheel: true,
+      },
+    ).showPickerDialog(
+      context,
+      actionsPadding: const EdgeInsets.all(16),
+    );
+    return dialogPickerColor;
   }
 }
