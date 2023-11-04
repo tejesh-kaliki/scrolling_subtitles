@@ -282,6 +282,14 @@ class ColorsState extends ChangeNotifier {
     return _activeColors[character] ?? Colors.white;
   }
 
+  void clearColors() async {
+    _activeColors.clear();
+    _fileColors.clear();
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.remove("colorsJsonPath");
+    notifyListeners();
+  }
+
   void loadColors(List<String> characters) {
     Map<String, Color> colorMap = {}
       ..addAll(_defaultColors)

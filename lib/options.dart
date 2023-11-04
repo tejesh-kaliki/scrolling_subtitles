@@ -227,7 +227,12 @@ class _ColorOptionsTabState extends State<ColorOptionsTab> {
       children: [
         TextButton(
           onPressed: () => colorsState.loadColors(characters),
-          child: const Text("Load Default Colors"),
+          child: const Text("Load Colors"),
+        ),
+        const Gap(5.0),
+        TextButton(
+          onPressed: () => colorsState.clearColors(),
+          child: const Text("Clear Colors"),
         ),
         const Gap(5.0),
         TextButton(
