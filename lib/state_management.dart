@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:dart_vlc/dart_vlc.dart';
+// import 'package:dart_vlc/dart_vlc.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/material.dart';
@@ -125,14 +126,14 @@ class SubtitleState extends ChangeNotifier {
 
 class AudioState extends ChangeNotifier {
   // Can use any id, but just used this random number.
-  final Player _player =
-      Player(id: 69420, commandlineArguments: ["--no-video"]);
+  final Player _player = Player();
   File? _audioFile;
   bool _audioLoaded = false;
   bool _paused = true;
 
   Player get player => _player;
-  Stream<PositionState> get positionStream => _player.positionStream;
+  Stream<Duration> get positionStream => _player.stream.position;
+  Stream<Duration> get durationStream => _player.stream.duration;
   String? get filePath => _audioFile?.path;
   bool get isLoaded => _audioLoaded;
   bool get isPlaying => !_paused;
@@ -145,44 +146,45 @@ class AudioState extends ChangeNotifier {
     File file = File(audioPath);
     if (!file.existsSync()) return;
 
-    _player.open(Media.file(file), autoStart: false);
+    // _player.open(Media.file(file), autoStart: false);
+    _player.open(Media(file.uri.toString()), play: false);
     _audioFile = file;
     _audioLoaded = true;
     notifyListeners();
   }
 
   void rewind10s() {
-    Duration fpos = (_player.position.position ?? Duration.zero) -
-        const Duration(seconds: 10);
+    Duration fpos = (_player.state.position) - const Duration(seconds: 10);
     seekToPos(fpos);
   }
 
   void forward10s() {
-    Duration fpos = (_player.position.position ?? Duration.zero) +
-        const Duration(seconds: 10);
+    Duration fpos = (_player.state.position) + const Duration(seconds: 10);
     seekToPos(fpos);
   }
 
   void seekToPos(Duration pos) {
-    Duration total = _player.position.duration ?? Duration.zero;
+    Duration total = _player.state.duration;
     if (pos < Duration.zero) pos = Duration.zero;
     if (pos > total) pos = total;
     _player.seek(pos);
-    _player.positionController.add(_player.position..position = pos);
+    // _player.positionController.add(_player.position..position = pos);
   }
 
   void togglePlayPause() {
-    _player.playOrPause();
-    _paused = !_paused;
-    notifyListeners();
+    _paused ? play() : pause();
   }
 
   void pause() {
-    if (!_paused) togglePlayPause();
+    _player.pause();
+    _paused = true;
+    notifyListeners();
   }
 
   void play() {
-    if (_paused) togglePlayPause();
+    _player.play();
+    _paused = false;
+    notifyListeners();
   }
 
   Future<void> pickFile() async {

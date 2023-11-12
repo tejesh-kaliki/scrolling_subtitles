@@ -1,18 +1,17 @@
 import 'dart:io';
 import 'dart:math';
-import 'dart:ui' as ui;
 
 import 'package:blur/blur.dart';
-import 'package:bordered_text/bordered_text.dart';
 import 'package:dart_casing/dart_casing.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:gradient_borders/box_borders/gradient_box_border.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
+import 'package:scrolling_subtitles/widgets/subtitle_display.dart';
+import 'package:scrolling_subtitles/widgets/subtitle_pointer.dart';
 import 'package:subtitle/subtitle.dart';
-import 'package:dart_vlc/dart_vlc.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'extensions.dart';
@@ -23,7 +22,7 @@ import 'state_management.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await windowManager.ensureInitialized();
-  DartVLC.initialize();
+  MediaKit.ensureInitialized();
 
   runApp(const MyApp());
 }
@@ -97,7 +96,6 @@ class _MyHomePageState extends State<MyHomePage> {
           }
         },
         child: Row(
-          // mainAxisSize: MainAxisSize.max,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Visibility(
@@ -199,6 +197,7 @@ class _VideoSectionState extends State<VideoSection> {
   /// Denotes the current background sub.
   /// null means that no background sub will be displayed.
   ValueNotifier<Subtitle?> bgSubValue = ValueNotifier(null);
+  ValueNotifier<bool> heightExceeded = ValueNotifier(false);
 
   @override
   void initState() {
@@ -208,22 +207,22 @@ class _VideoSectionState extends State<VideoSection> {
         .listen(checkForBackgroundSub);
   }
 
-  void checkForBackgroundSub(PositionState state) {
+  void checkForBackgroundSub(Duration position) {
     List<Subtitle> backgroundSubs =
         Provider.of<SubtitleState>(context, listen: false).backgroundSubs ?? [];
     Duration subtitleDelay =
         Provider.of<OptionsState>(context, listen: false).subtitleDelay;
-    Duration playerPos = state.position ?? Duration.zero;
+    // Duration playerPos = state.position ?? Duration.zero;
 
     Subtitle? cSub = bgSubValue.value;
-    if (cSub != null && cSub.start < playerPos && cSub.end > playerPos) return;
+    if (cSub != null && cSub.start < position && cSub.end > position) return;
 
     Subtitle? finalSub;
     for (Subtitle s in backgroundSubs) {
       Duration start = s.start - subtitleDelay;
       Duration end = s.end + subtitleDelay;
 
-      if (start < playerPos && playerPos < end) finalSub = s;
+      if (start < position && position < end) finalSub = s;
     }
 
     if (cSub != finalSub) bgSubValue.value = finalSub;
@@ -256,12 +255,12 @@ class _VideoSectionState extends State<VideoSection> {
         child: SizedBox(
           height: imageSize.height,
           width: imageSize.width,
-          child: StreamBuilder<PositionState>(
+          child: StreamBuilder<Duration>(
             stream: audioState.positionStream,
             builder: (context, snapshot) {
               if (!snapshot.hasData) return displayImage(imState.image);
 
-              Duration playerPos = snapshot.data!.position ?? Duration.zero;
+              Duration playerPos = snapshot.data!;
               Duration offset = playerPos - subStartTime;
 
               bool overlay =
@@ -396,6 +395,7 @@ class _VideoSectionState extends State<VideoSection> {
   }
 
   Widget displayPositon() {
+    AudioState state = Provider.of<AudioState>(context, listen: false);
     return Positioned(
       right: 15,
       top: 15,
@@ -410,17 +410,22 @@ class _VideoSectionState extends State<VideoSection> {
           ),
           borderRadius: BorderRadius.circular(100),
         ),
-        child: StreamBuilder<PositionState>(
-          stream:
-              Provider.of<AudioState>(context, listen: false).positionStream,
-          builder: (context, snapshot) {
-            PositionState? state = snapshot.data;
-            String position = state?.position.toString().substring(0, 7) ?? "-";
-            String duration = state?.duration.toString().substring(0, 7) ?? "-";
-            return Text(
-              "$position / $duration",
-              style: GoogleFonts.acme(color: Colors.black, fontSize: 18),
-              textAlign: TextAlign.center,
+        child: StreamBuilder<Duration>(
+          stream: state.durationStream,
+          builder: (context, dSnapshot) {
+            String duration = dSnapshot.data?.toString().substring(0, 7) ?? "-";
+            return StreamBuilder<Duration>(
+              stream: Provider.of<AudioState>(context, listen: false)
+                  .positionStream,
+              builder: (context, pSnapshot) {
+                Duration? pos = pSnapshot.data;
+                String position = pos?.toString().substring(0, 7) ?? "-";
+                return Text(
+                  "$position / $duration",
+                  style: GoogleFonts.acme(color: Colors.black, fontSize: 18),
+                  textAlign: TextAlign.center,
+                );
+              },
             );
           },
         ),
@@ -448,18 +453,17 @@ class SubtitleHighlight extends StatelessWidget {
     List<Color> colors = characters.map((e) => colorsState.of(e)).toList();
     if (colors.isEmpty) colors.add(Colors.white);
 
-    BoxDecoration borderDecoration, fillDecoration;
+    BoxDecoration borderDecoration;
     LinearGradient gradient;
     if (colors.length == 1) {
       gradient = LinearGradient(colors: [colors.first, colors.first]);
-      fillDecoration = BoxDecoration(color: colors.first.withOpacity(0.3));
     } else {
       gradient = LinearGradient(colors: colors);
-      fillDecoration = BoxDecoration(gradient: gradient.scale(0.3));
     }
     borderDecoration = BoxDecoration(
       borderRadius: BorderRadius.circular(20),
       border: GradientBoxBorder(gradient: gradient, width: 3),
+      gradient: gradient.scale(0.3),
     );
 
     return Row(
@@ -475,13 +479,21 @@ class SubtitleHighlight extends StatelessWidget {
                 blur: 10,
                 colorOpacity: 0,
                 blurColor: Colors.white,
-                overlay: Container(
-                  decoration: borderDecoration,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    decoration: fillDecoration,
+                overlay: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  transitionBuilder:
+                      (Widget child, Animation<double> animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: child,
+                    );
+                  },
+                  child: Container(
+                    key: ValueKey(characters.toString()),
+                    decoration: borderDecoration,
                   ),
                 ),
+                // ),
                 child: Container(height: min(height, maxHeight)),
               ),
               Transform.translate(
@@ -589,16 +601,15 @@ class _SubtitleListViewState extends State<SubtitleListView> {
     offset = widget.offset;
   }
 
-  void onPositionChange(PositionState state) {
+  void onPositionChange(Duration position) {
     List<Subtitle>? subtitles =
         Provider.of<SubtitleState>(context, listen: false).subtitles;
     Duration subDelay =
         Provider.of<OptionsState>(context, listen: false).subtitleDelay;
-    if (state.position == null || subtitles == null) return;
+    if (subtitles == null) return;
     int i = csIndex.value;
     Subtitle sub = subtitles[i];
-    Duration position = state.position! + subDelay;
-    if (position > state.duration!) position = state.duration!;
+    position += subDelay;
     if (position > sub.start && position <= sub.end) return;
 
     if (position > sub.end) {
@@ -613,12 +624,17 @@ class _SubtitleListViewState extends State<SubtitleListView> {
       i++;
     }
     if (csIndex.value != i) {
+      int dif = (csIndex.value - i).abs();
       onPageChanged(i);
-      _controller.animateToPage(
-        i,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
-      );
+      if (dif < 5) {
+        _controller.animateToPage(
+          i,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      } else {
+        _controller.jumpToPage(i);
+      }
     }
   }
 
@@ -655,200 +671,6 @@ class _SubtitleListViewState extends State<SubtitleListView> {
           ),
         );
       },
-    );
-  }
-}
-
-class SubtitleDisplay extends StatelessWidget {
-  final Subtitle subtitle;
-  final bool blur;
-  final bool current;
-
-  const SubtitleDisplay(
-    this.subtitle, {
-    super.key,
-    this.blur = false,
-    this.current = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    ColorsState colorsState = context.watch<ColorsState>();
-    double width =
-        context.select<ImageState, Size>((s) => s.imageSize).width * 4 / 5;
-    String text = subtitle.parsedData;
-    List<Color> colors;
-    if (blur || current) {
-      colors = [];
-    } else {
-      colors = subtitle.characters
-          .map((c) => colorsState.of(c).clampLightness(0.65, 1.0))
-          .toList();
-    }
-    if (colors.isEmpty) colors = [Colors.white];
-
-    TextStyle style = GoogleFonts.poppins(
-      textStyle: const TextStyle(
-        fontWeight: FontWeight.w500,
-        letterSpacing: 1,
-        fontSize: 25,
-        height: 1.1,
-      ),
-    );
-    if (colors.length == 1) {
-      style = style.copyWith(color: colors.first);
-    } else {
-      double w = min(text.length / 50, 1) * width;
-      style = style.copyWith(
-        foreground: Paint()
-          ..shader = LinearGradient(colors: colors)
-              .createShader(Rect.fromLTWH(0, 0, w, 100)),
-      );
-    }
-
-    double textScale = text.length <= 100 ? 1.0 : getTextScale(text, width);
-
-    Widget child = Padding(
-      padding: const EdgeInsets.only(left: 5, right: 5, top: 6),
-      child: AnimatedDefaultTextStyle(
-        duration: const Duration(milliseconds: 300),
-        style: style,
-        child: BorderedText(
-          strokeWidth: 5,
-          strokeJoin: StrokeJoin.round,
-          strokeColor: Colors.black.withOpacity(0.75),
-          child: Text(
-            text,
-            textScaleFactor: textScale,
-          ),
-        ),
-      ),
-    );
-
-    if (blur && text.isNotEmpty) {
-      child = Blur(
-        blurColor: Colors.white,
-        blur: 5,
-        colorOpacity: 0,
-        child: child,
-      );
-    }
-
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: child,
-    );
-  }
-
-  double getTextScale(String text, double width) {
-    TextStyle textStyle = GoogleFonts.poppins(
-      textStyle: const TextStyle(
-        fontWeight: FontWeight.w500,
-        letterSpacing: 1,
-        fontSize: 25,
-      ),
-    );
-    ui.ParagraphConstraints constraints =
-        ui.ParagraphConstraints(width: width - 100);
-
-    ui.ParagraphBuilder pb =
-        ui.ParagraphBuilder(textStyle.getParagraphStyle(maxLines: 2))
-          ..addText(text);
-    ui.Paragraph paragraph = pb.build()..layout(constraints);
-
-    if (paragraph.didExceedMaxLines) {
-      return 0.92;
-    }
-    return 1.0;
-  }
-}
-
-class SubtitlePointer extends StatefulWidget {
-  const SubtitlePointer({
-    super.key,
-    this.colors = const [Colors.white],
-  });
-
-  final List<Color> colors;
-
-  @override
-  State<SubtitlePointer> createState() => _SubtitlePointerState();
-}
-
-class _SubtitlePointerState extends State<SubtitlePointer>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation1;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )
-      ..forward()
-      ..addListener(() {
-        if (_controller.isDismissed) {
-          _controller.forward();
-        } else if (_controller.isCompleted) {
-          _controller.reverse();
-        }
-      });
-    _animation1 = Tween<double>(begin: 0, end: pi).animate(_controller)
-      ..addListener(() {
-        setState(() {});
-      });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    List<Color> colors =
-        widget.colors.map((e) => e.clampLightness(0.625, 0.94)).toList();
-    Color color1, color2;
-    if (colors.length == 1) {
-      color1 = color2 = colors.first;
-    } else {
-      color1 = colors[0];
-      color2 = colors[1];
-    }
-
-    return Stack(
-      alignment: Alignment.centerRight,
-      children: [
-        Positioned(
-          right: 15,
-          child: Transform.translate(
-            offset: Offset(sin(_animation1.value) * 10, 0),
-            child: Transform.rotate(
-              angle: -1 / 2,
-              child: Icon(
-                CupertinoIcons.triangle,
-                color: color1,
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          right: 30,
-          child: Transform.translate(
-            offset: Offset(sin(_animation1.value) * 15, 0),
-            child: Transform.rotate(
-              angle: -1 / 2,
-              child: Icon(
-                CupertinoIcons.triangle_fill,
-                color: color2,
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
