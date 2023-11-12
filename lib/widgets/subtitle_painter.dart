@@ -11,7 +11,7 @@ class SubtitlePainter extends CustomPainter {
     this.colors = const [],
   });
 
-  TextStyle getTextStyle() {
+  static TextStyle getTextStyle() {
     return GoogleFonts.poppins(
       textStyle: const TextStyle(
         fontWeight: FontWeight.w500,
@@ -22,7 +22,7 @@ class SubtitlePainter extends CustomPainter {
     );
   }
 
-  Paint getBorderPainter() {
+  static Paint getBorderPainter() {
     return Paint()
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
@@ -80,5 +80,19 @@ class SubtitlePainter extends CustomPainter {
       if (oldDelegate.colors[i] != colors[i]) return true;
     }
     return false;
+  }
+
+  static double getTextDisplayHeight(String text, double width) {
+    TextStyle textStyle = getTextStyle();
+    TextSpan textSpan = TextSpan(
+      text: text,
+      style: textStyle,
+    );
+    TextPainter painter = TextPainter(
+      text: textSpan,
+      textDirection: TextDirection.ltr,
+    );
+    painter.layout(minWidth: 0, maxWidth: width - 10);
+    return painter.height;
   }
 }

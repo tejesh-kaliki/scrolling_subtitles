@@ -6,7 +6,7 @@ extension SubtitleEx on Subtitle {
   static final RegExp _characterNameRegex =
       RegExp(r"^(?:([^:(]+)((?:\s*\([^)]+\))*)\s*:)?(.*)$");
 
-  String get parsedData {
+  String get textWithoutSpeaker {
     RegExpMatch? match = _characterNameRegex.firstMatch(data);
     return match?.group(3)?.trim() ?? "";
   }

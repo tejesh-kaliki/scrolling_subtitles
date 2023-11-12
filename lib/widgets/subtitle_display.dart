@@ -2,7 +2,7 @@ import 'package:blur/blur.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:scrolling_subtitles/extensions.dart';
-import 'package:scrolling_subtitles/state_management.dart';
+import 'package:scrolling_subtitles/states/colors_state.dart';
 import 'package:scrolling_subtitles/widgets/subtitle_painter.dart';
 import 'package:subtitle/subtitle.dart';
 
@@ -21,7 +21,7 @@ class SubtitleDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     ColorsState colorsState = context.watch<ColorsState>();
-    String text = subtitle.parsedData;
+    String text = subtitle.textWithoutSpeaker;
 
     List<Color> colors;
     if (blur || current) {

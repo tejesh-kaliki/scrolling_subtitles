@@ -3,8 +3,11 @@ import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 import 'package:dart_casing/dart_casing.dart';
-
-import 'state_management.dart';
+import 'package:scrolling_subtitles/states/audio_state.dart';
+import 'package:scrolling_subtitles/states/image_state.dart';
+import 'package:scrolling_subtitles/states/options_state.dart';
+import 'package:scrolling_subtitles/states/subtitle_state.dart';
+import 'package:scrolling_subtitles/states/colors_state.dart';
 
 class OptionsPanel extends StatefulWidget {
   const OptionsPanel({super.key});
@@ -220,8 +223,9 @@ class _ColorOptionsTabState extends State<ColorOptionsTab> {
   @override
   Widget build(BuildContext context) {
     ColorsState colorsState = context.watch<ColorsState>();
-    List<String> characters =
-        context.select<SubtitleState, List<String>>((s) => s.characters);
+    Set<String> characters =
+        context.select<SubtitleState, Set<String>>((s) => s.characters);
+    List<String> characterList = characters.toList();
 
     return Column(
       children: [
@@ -249,9 +253,9 @@ class _ColorOptionsTabState extends State<ColorOptionsTab> {
           child: ListView.builder(
             itemCount: characters.length,
             itemBuilder: (context, i) {
-              Color color = colorsState.of(characters[i]);
+              Color color = colorsState.of(characterList[i]);
 
-              String name = Casing.titleCase(characters[i]);
+              String name = Casing.titleCase(characterList[i]);
 
               return ListTile(
                 title: Text(name),
@@ -266,7 +270,7 @@ class _ColorOptionsTabState extends State<ColorOptionsTab> {
                 ),
                 onTap: () async {
                   Color newColor = await colorPickerDialog(color);
-                  colorsState.setCharacterColor(characters[i], newColor);
+                  colorsState.setCharacterColor(characterList[i], newColor);
                 },
               );
             },
