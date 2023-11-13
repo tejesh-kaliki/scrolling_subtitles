@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:scrolling_subtitles/extensions.dart';
 import 'package:scrolling_subtitles/states/colors_state.dart';
+import 'package:scrolling_subtitles/states/options_state.dart';
 import 'package:scrolling_subtitles/widgets/subtitle_painter.dart';
 import 'package:subtitle/subtitle.dart';
 
@@ -21,6 +22,7 @@ class SubtitleDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     ColorsState colorsState = context.watch<ColorsState>();
+    OptionsState optionsState = context.watch<OptionsState>();
     String text = subtitle.textWithoutSpeaker;
 
     List<Color> colors;
@@ -34,7 +36,11 @@ class SubtitleDisplay extends StatelessWidget {
     if (colors.isEmpty) colors = [Colors.white];
 
     Widget child = CustomPaint(
-      painter: SubtitlePainter(text: text, colors: colors),
+      painter: SubtitlePainter(
+        text: text,
+        colors: colors,
+        options: optionsState,
+      ),
       child: Container(),
     );
 

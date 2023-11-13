@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ImageState extends ChangeNotifier {
+  static const String imageSharedKey = "imagePath";
   File? _imageFile;
   Size _imageSize = const Size.square(1080);
 
@@ -36,12 +37,12 @@ class ImageState extends ChangeNotifier {
 
     setImageFile(path);
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString("imagePath", path);
+    prefs.setString(imageSharedKey, path);
   }
 
   Future<void> loadPreviousState() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? path = prefs.getString("imagePath");
+    String? path = prefs.getString(imageSharedKey);
     if (path != null) setImageFile(path);
   }
 }

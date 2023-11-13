@@ -3,7 +3,6 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
 import 'package:scrolling_subtitles/states/audio_state.dart';
@@ -11,6 +10,7 @@ import 'package:scrolling_subtitles/states/image_state.dart';
 import 'package:scrolling_subtitles/states/options_state.dart';
 import 'package:scrolling_subtitles/states/subtitle_state.dart';
 import 'package:scrolling_subtitles/states/colors_state.dart';
+import 'package:scrolling_subtitles/widgets/playback_position.dart';
 import 'package:scrolling_subtitles/widgets/subtitle_display.dart';
 import 'package:scrolling_subtitles/widgets/subtitle_highlight.dart';
 import 'package:scrolling_subtitles/widgets/subtitle_list_view.dart';
@@ -309,7 +309,11 @@ class _VideoSectionState extends State<VideoSection> {
                     ),
                   ),
                   showBackgroundSub(imageSize.height, subWidth),
-                  displayPositon(),
+                  const Positioned(
+                    top: 15,
+                    right: 15,
+                    child: PlaybackPosition(),
+                  ),
                 ],
               );
             },
@@ -349,6 +353,7 @@ class _VideoSectionState extends State<VideoSection> {
           double subHeight = SubtitlePainter.getTextDisplayHeight(
             subtitle!.textWithoutSpeaker,
             subWidth - 40,
+            Provider.of<OptionsState>(context, listen: false),
           );
 
           double highlightHeight = max(height * 0.8, subHeight + 35);
@@ -373,6 +378,7 @@ class _VideoSectionState extends State<VideoSection> {
         double subHeight = SubtitlePainter.getTextDisplayHeight(
           subtitle.textWithoutSpeaker,
           subWidth - 40,
+          Provider.of<OptionsState>(context, listen: false),
         );
 
         double highlightHeight = max(height * 0.8, subHeight + 35);
@@ -415,45 +421,6 @@ class _VideoSectionState extends State<VideoSection> {
     return Align(
       alignment: offset,
       child: FractionallySizedBox(heightFactor: 1 / subsPerPage, child: child),
-    );
-  }
-
-  Widget displayPositon() {
-    AudioState state = Provider.of<AudioState>(context, listen: false);
-    return Positioned(
-      right: 15,
-      top: 15,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: Colors.amber.shade200,
-          border: Border.all(
-            color: Colors.amber,
-            width: 2,
-            strokeAlign: BorderSide.strokeAlignOutside,
-          ),
-          borderRadius: BorderRadius.circular(100),
-        ),
-        child: StreamBuilder<Duration>(
-          stream: state.durationStream,
-          builder: (context, dSnapshot) {
-            String duration = dSnapshot.data?.toString().substring(0, 7) ?? "-";
-            return StreamBuilder<Duration>(
-              stream: Provider.of<AudioState>(context, listen: false)
-                  .positionStream,
-              builder: (context, pSnapshot) {
-                Duration? pos = pSnapshot.data;
-                String position = pos?.toString().substring(0, 7) ?? "-";
-                return Text(
-                  "$position / $duration",
-                  style: GoogleFonts.acme(color: Colors.black, fontSize: 18),
-                  textAlign: TextAlign.center,
-                );
-              },
-            );
-          },
-        ),
-      ),
     );
   }
 }

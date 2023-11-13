@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
+import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 import 'package:dart_casing/dart_casing.dart';
@@ -48,9 +49,12 @@ class _OptionsPanelState extends State<OptionsPanel>
           tabs: [displayTab("Basic"), displayTab("Colors")],
         ),
         Expanded(
-          child: TabBarView(
-            controller: _controller,
-            children: const [MainOptionsTab(), ColorOptionsTab()],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10.0),
+            child: TabBarView(
+              controller: _controller,
+              children: const [MainOptionsTab(), ColorOptionsTab()],
+            ),
           ),
         ),
       ],
@@ -105,6 +109,7 @@ class _MainOptionsTabState extends State<MainOptionsTab> {
     ImageState imageState = context.watch<ImageState>();
     AudioState audioState = context.watch<AudioState>();
     SubtitleState subtitleState = context.watch<SubtitleState>();
+    OptionsState optionsState = context.watch<OptionsState>();
     String? audioPath = audioState.filePath;
     String? imagePath = imageState.filePath;
     String? subtitlePath = subtitleState.filePath;
@@ -114,69 +119,79 @@ class _MainOptionsTabState extends State<MainOptionsTab> {
       child: ListView(
         primary: false,
         children: [
-          Column(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              Text(imagePath == null
-                  ? "Select an Image:"
-                  : "Selected Image: ${displayPath(imagePath)}"),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: TextButton(
-                  onPressed: () => imageState.pickFile(),
-                  child: Text(imagePath == null
-                      ? "Choose an Image"
-                      : "Choose another Image"),
-                ),
-              ),
-            ],
-          ),
-          const Divider(),
-          Column(
-            children: [
-              Text(subtitlePath == null
-                  ? "Select subtitle file:"
-                  : "Selected subtitle file: ${displayPath(subtitlePath)}"),
-              loadingSubs
-                  ? const Text("Loading subs... Please wait")
-                  : Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: TextButton(
-                        onPressed: () async {
-                          setState(() => loadingSubs = true);
-                          await subtitleState.pickFile();
-                          setState(() => loadingSubs = false);
-                        },
-                        child: Text(subtitlePath == null
-                            ? "Choose the subtitle file"
-                            : "Choose another subtitle file"),
-                      ),
+              Column(
+                children: [
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          imagePath != null ? Colors.green : Colors.blue,
                     ),
-            ],
-          ),
-          const Divider(),
-          Column(
-            children: [
-              Text(audioPath == null
-                  ? "Select audio file:"
-                  : "Selected audio file: ${displayPath(audioPath)}"),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: TextButton(
-                  onPressed: () => audioState.pickFile(),
-                  child: Text(audioPath == null
-                      ? "Choose the audio file"
-                      : "Choose another audio file"),
-                ),
+                    onPressed: () => imageState.pickFile(),
+                    child: imagePath == null
+                        ? const Text("Pick Image")
+                        : const Text("Pick New Image"),
+                  ),
+                  if (imagePath != null) Text(displayPath(imagePath)),
+                ],
+              ),
+              Column(
+                children: [
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          imagePath != null ? Colors.green : Colors.blue,
+                    ),
+                    onPressed: loadingSubs
+                        ? null
+                        : () async {
+                            setState(() => loadingSubs = true);
+                            await subtitleState.pickFile();
+                            setState(() => loadingSubs = false);
+                          },
+                    child: loadingSubs
+                        ? const Text("Loading Subs")
+                        : subtitlePath == null
+                            ? const Text("Pick Subtitles")
+                            : const Text("Pick New Subtitles"),
+                  ),
+                  if (subtitlePath != null) Text(displayPath(subtitlePath)),
+                ],
+              ),
+              Column(
+                children: [
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          imagePath != null ? Colors.green : Colors.blue,
+                    ),
+                    onPressed: () => audioState.pickFile(),
+                    child: audioPath == null
+                        ? const Text("Pick Audio")
+                        : const Text("Pick New Audio"),
+                  ),
+                  if (audioPath != null) Text(displayPath(audioPath)),
+                ],
               ),
             ],
           ),
+          const Gap(10),
           const Divider(),
           if (audioPath != null) ...[
             Row(
               children: [
-                const Text("Seek Audio to Duration:"),
-                const SizedBox(width: 10),
-                Expanded(
+                const SizedBox(
+                  width: 150,
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Text("Seek Audio:"),
+                  ),
+                ),
+                const Gap(10),
+                SizedBox(
+                  width: 150,
                   child: TextField(
                     onSubmitted: seekToPos,
                     decoration: const InputDecoration(
@@ -187,13 +202,20 @@ class _MainOptionsTabState extends State<MainOptionsTab> {
                 ),
               ],
             ),
-            const Divider(),
+            const Gap(10),
           ],
           Row(
             children: [
-              const Text("Subtitle Delay (in ms):"),
-              const SizedBox(width: 10),
-              Expanded(
+              const SizedBox(
+                width: 150,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text("Subtitle Delay:"),
+                ),
+              ),
+              const Gap(10),
+              SizedBox(
+                width: 150,
                 child: TextField(
                   onSubmitted: setSubDelay,
                   decoration: const InputDecoration(
@@ -205,10 +227,118 @@ class _MainOptionsTabState extends State<MainOptionsTab> {
               ),
             ],
           ),
+          const Gap(10),
           const Divider(),
+          ...displayFontOptions(optionsState),
         ],
       ),
     );
+  }
+
+  List<Widget> displayFontOptions(OptionsState state) {
+    return [
+      Row(
+        children: [
+          const SizedBox(
+            width: 150,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text("Font Family:"),
+            ),
+          ),
+          const Gap(10),
+          DropdownMenu(
+            initialSelection: state.fontFamily,
+            dropdownMenuEntries: SubtitleFontFamily.values
+                .map((e) => DropdownMenuEntry(
+                      value: e,
+                      label: Casing.titleCase(e.name),
+                    ))
+                .toList(),
+            onSelected: (value) =>
+                state.fontFamily = value ?? SubtitleFontFamily.poppins,
+          ),
+        ],
+      ),
+      const Gap(10),
+      Row(
+        children: [
+          const SizedBox(
+            width: 150,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text("Font Size:"),
+            ),
+          ),
+          const Gap(10),
+          SizedBox(
+            width: 150,
+            child: TextField(
+              onSubmitted: (value) {
+                double fontSize = double.parse(value);
+                state.fontSize = fontSize;
+              },
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                hintText: state.fontSize.toString(),
+              ),
+            ),
+          ),
+        ],
+      ),
+      const Gap(10),
+      Row(
+        children: [
+          const SizedBox(
+            width: 150,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text("Line Height:"),
+            ),
+          ),
+          const Gap(10),
+          SizedBox(
+            width: 150,
+            child: TextField(
+              onSubmitted: (value) {
+                double lineHeight = double.parse(value);
+                state.lineHeight = lineHeight;
+              },
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                hintText: state.lineHeight.toString(),
+              ),
+            ),
+          ),
+        ],
+      ),
+      const Gap(10),
+      Row(
+        children: [
+          const SizedBox(
+            width: 150,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text("Border Width:"),
+            ),
+          ),
+          const Gap(10),
+          SizedBox(
+            width: 150,
+            child: TextField(
+              onSubmitted: (value) {
+                double width = double.parse(value);
+                state.borderWidth = width;
+              },
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                hintText: state.borderWidth.toString(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ];
   }
 }
 
@@ -229,26 +359,29 @@ class _ColorOptionsTabState extends State<ColorOptionsTab> {
 
     return Column(
       children: [
-        TextButton(
-          onPressed: () => colorsState.loadColors(characters),
-          child: const Text("Load Colors"),
+        const Gap(10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            ElevatedButton(
+              onPressed: () => colorsState.loadColors(characters),
+              child: const Text("Load"),
+            ),
+            ElevatedButton(
+              onPressed: () => colorsState.clearColors(),
+              child: const Text("Clear"),
+            ),
+            ElevatedButton(
+              onPressed: () async => await colorsState.saveToFile(),
+              child: const Text("Save to file"),
+            ),
+            ElevatedButton(
+              onPressed: () async => await colorsState.pickFile(characters),
+              child: const Text("Load from file"),
+            ),
+          ],
         ),
-        const Gap(5.0),
-        TextButton(
-          onPressed: () => colorsState.clearColors(),
-          child: const Text("Clear Colors"),
-        ),
-        const Gap(5.0),
-        TextButton(
-          onPressed: () async => await colorsState.saveToFile(),
-          child: const Text("Save to file"),
-        ),
-        const Gap(5.0),
-        TextButton(
-          onPressed: () async => await colorsState.pickFile(characters),
-          child: const Text("Load from file"),
-        ),
-        const Gap(5.0),
+        const Gap(10),
         Expanded(
           child: ListView.builder(
             itemCount: characters.length,

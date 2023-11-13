@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:subtitle/subtitle.dart';
 
 class SubtitleState extends ChangeNotifier {
+  static const String subtitleSharedKey = "subsPath";
+
   List<Subtitle>? _subtitles;
   List<Subtitle>? _backgroundSubs;
   final Set<String> _characterSet = {};
@@ -55,12 +57,12 @@ class SubtitleState extends ChangeNotifier {
     if (path == null) return;
     await parseSubs(path);
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString("subsPath", path);
+    prefs.setString(subtitleSharedKey, path);
   }
 
   Future<void> loadPreviousState() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? path = prefs.getString("subsPath");
+    String? path = prefs.getString(subtitleSharedKey);
     if (path != null) await parseSubs(path);
   }
 }

@@ -5,7 +5,8 @@ import 'package:media_kit/media_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AudioState extends ChangeNotifier {
-  // Can use any id, but just used this random number.
+  static const String audioSharedKey = "audioPath";
+
   final Player _player = Player();
   File? _audioFile;
   bool _audioLoaded = false;
@@ -77,12 +78,12 @@ class AudioState extends ChangeNotifier {
 
     loadAudio(path);
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString("audioPath", path);
+    prefs.setString(audioSharedKey, path);
   }
 
   Future<void> loadPreviousState() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? path = prefs.getString("audioPath");
+    String? path = prefs.getString(audioSharedKey);
     if (path != null) loadAudio(path);
   }
 }
