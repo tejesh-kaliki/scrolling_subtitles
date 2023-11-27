@@ -15,7 +15,7 @@ This app currently only supports `vtt` for the subtitle file. Follow these speci
 ```name(background): line```
 
 #### 4. Italic text: (Enclose the required text in *s)
-```name: This is normal line. *This is italic line.*```
+```name: *This is italic line.*```
 
 #### Subtitle Example:
 - For an example on how the vtt file should be specified, check [this file](examples/bookworm-CD5-subs.vtt).
