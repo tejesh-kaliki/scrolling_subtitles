@@ -33,3 +33,10 @@ c - load colors
 - By default, only colors for a few characters from `Ascendance of a Bookworm` are available. You will have to select colors manually for all the characters.
 - Colors file uses a json format. You can just click `save to file` in the colors file to create a json for the current selected colors.
 - In case you want to add colors manually, you check [this file](examples/colors.json) for the json format.
+
+### Image Specifications:
+- The recommended image resolution is `1125 x 992`. Larger or smaller images can be used by adjusting the text size accordingly.
+- But make sure the ratio is similar, because number of subtitles shown at once is fixed for now (8).
+
+### Audio Specifications:
+- Supports most of the video and audio formats like `mp4`, `mp3`, `mkv`, `aac`, etc.
