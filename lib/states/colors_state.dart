@@ -19,8 +19,11 @@ class ColorsState extends ChangeNotifier {
   final JsonDecoder decoder = const JsonDecoder();
 
   ColorsState() {
-    loadDefaultColors();
-    loadPreviousState();
+    Future.wait([loadDefaultColors(), loadPreviousState()])
+        .then((_) => _activeColors
+          ..clear()
+          ..addAll(_defaultColors)
+          ..addAll(_fileColors));
   }
 
   Map<String, Color> get charColors => _activeColors;
@@ -57,7 +60,7 @@ class ColorsState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> saveToFile() async {
+  Future<void> saveToFile(List<String> characters) async {
     String? path = await FilePicker.platform.saveFile(
       allowedExtensions: ["json"],
       type: FileType.custom,
@@ -65,8 +68,9 @@ class ColorsState extends ChangeNotifier {
     );
     if (path == null) return;
 
-    Map<String, String> colorMap =
-        _activeColors.map((key, value) => MapEntry(key, value.hex));
+    Map<String, String> colorMap = {
+      for (String character in characters) character: of(character).hex
+    };
     String jsonText = encoder.convert(colorMap);
     File file = File(path);
     await file.writeAsString(jsonText);

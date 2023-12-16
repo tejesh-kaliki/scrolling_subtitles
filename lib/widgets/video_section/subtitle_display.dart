@@ -1,10 +1,11 @@
-import 'package:blur/blur.dart';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:scrolling_subtitles/extensions.dart';
 import 'package:scrolling_subtitles/states/colors_state.dart';
 import 'package:scrolling_subtitles/states/options_state.dart';
-import 'package:scrolling_subtitles/widgets/subtitle_painter.dart';
+import 'package:scrolling_subtitles/widgets/video_section/subtitle_painter.dart';
 import 'package:subtitle/subtitle.dart';
 
 class SubtitleDisplay extends StatelessWidget {
@@ -45,10 +46,9 @@ class SubtitleDisplay extends StatelessWidget {
     );
 
     if (blur && text.isNotEmpty) {
-      child = Blur(
-        blurColor: Colors.white,
-        blur: 5,
-        colorOpacity: 0,
+      child = ImageFiltered(
+        imageFilter:
+            ImageFilter.blur(sigmaX: 5, sigmaY: 5, tileMode: TileMode.clamp),
         child: child,
       );
     }

@@ -8,4 +8,4 @@ class RewindIntent extends Intent {}
 
 class FitWindowToCanvasIntent extends Intent {}
 
-class LoadColorsIntent extends Intent {}
+class FullScreenIntent extends Intent {}

@@ -26,7 +26,7 @@ space - play/pause
 Right Arrow - forward 10s
 Left Arrow - rewind 10s
 f - toggle fit window to content
-c - load colors
+F11 - Enter/Exit Full Screen
 ```
 
 ### Colors:
