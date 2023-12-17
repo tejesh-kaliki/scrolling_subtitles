@@ -31,7 +31,6 @@ class _VideoSectionState extends State<VideoSection> {
   late ValueNotifier<Subtitle?> subValue = ValueNotifier(null);
   late StreamSubscription<Duration> _streamSubscription;
 
-  // TODO: Make user select subtitle display position
   int subsPerPage = 7;
   double subPosition = 4;
 
