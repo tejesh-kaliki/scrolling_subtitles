@@ -1,8 +1,12 @@
+// Dart imports:
 import 'dart:math';
 
+// Flutter imports:
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:scrolling_subtitles/extensions.dart';
+
+// Project imports:
+import 'package:visual_subs/extensions.dart';
 
 class SubtitlePointer extends StatefulWidget {
   const SubtitlePointer({

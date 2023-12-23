@@ -1,10 +1,15 @@
+// Flutter imports:
+import 'package:flutter/material.dart';
+
+// Package imports:
 import 'package:dart_casing/dart_casing.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
-import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
-import 'package:scrolling_subtitles/states/colors_state.dart';
-import 'package:scrolling_subtitles/states/subtitle_state.dart';
+
+// Project imports:
+import 'package:visual_subs/states/colors_state.dart';
+import 'package:visual_subs/states/subtitle_state.dart';
 
 class ColorOptionsTab extends StatefulWidget {
   const ColorOptionsTab({super.key});

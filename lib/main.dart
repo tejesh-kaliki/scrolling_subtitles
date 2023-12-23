@@ -1,15 +1,19 @@
+// Flutter imports:
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+// Package imports:
 import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
-import 'package:scrolling_subtitles/states/audio_state.dart';
-import 'package:scrolling_subtitles/states/image_state.dart';
-import 'package:scrolling_subtitles/states/options_state.dart';
-import 'package:scrolling_subtitles/states/subtitle_state.dart';
-import 'package:scrolling_subtitles/states/colors_state.dart';
-import 'package:scrolling_subtitles/widgets/video_section/video_section.dart';
 import 'package:window_manager/window_manager.dart';
 
+// Project imports:
+import 'package:visual_subs/states/audio_state.dart';
+import 'package:visual_subs/states/colors_state.dart';
+import 'package:visual_subs/states/image_state.dart';
+import 'package:visual_subs/states/options_state.dart';
+import 'package:visual_subs/states/subtitle_state.dart';
+import 'package:visual_subs/widgets/video_section/video_section.dart';
 import 'intents.dart';
 import 'options.dart';
 

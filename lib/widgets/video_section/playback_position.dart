@@ -1,7 +1,12 @@
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Package imports:
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:scrolling_subtitles/states/audio_state.dart';
+
+// Project imports:
+import 'package:visual_subs/states/audio_state.dart';
 
 class PlaybackPosition extends StatelessWidget {
   const PlaybackPosition({super.key});

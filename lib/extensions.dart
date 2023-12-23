@@ -1,5 +1,8 @@
-import 'package:flex_color_picker/flex_color_picker.dart';
+// Flutter imports:
 import 'package:flutter/painting.dart';
+
+// Package imports:
+import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:subtitle/subtitle.dart';
 
 extension SubtitleEx on Subtitle {

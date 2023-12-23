@@ -1,9 +1,16 @@
+// Dart imports:
 import 'dart:io';
-import 'package:file_picker/file_picker.dart';
+
+// Flutter imports:
 import 'package:flutter/material.dart';
-import 'package:scrolling_subtitles/extensions.dart';
+
+// Package imports:
+import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:subtitle/subtitle.dart';
+
+// Project imports:
+import 'package:visual_subs/extensions.dart';
 
 class SubtitleState extends ChangeNotifier {
   static const String subtitleSharedKey = "subsPath";

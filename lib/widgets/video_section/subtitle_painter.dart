@@ -1,7 +1,14 @@
+// Dart imports:
 import 'dart:ui' as ui;
+
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Package imports:
 import 'package:google_fonts/google_fonts.dart';
-import 'package:scrolling_subtitles/states/options_state.dart';
+
+// Project imports:
+import 'package:visual_subs/states/options_state.dart';
 
 class SubtitlePainter extends CustomPainter {
   final String text;

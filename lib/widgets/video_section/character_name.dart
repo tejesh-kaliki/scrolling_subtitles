@@ -1,10 +1,15 @@
-import 'package:dart_casing/dart_casing.dart';
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Package imports:
+import 'package:dart_casing/dart_casing.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:scrolling_subtitles/extensions.dart';
-import 'package:scrolling_subtitles/states/colors_state.dart';
 import 'package:subtitle/subtitle.dart';
+
+// Project imports:
+import 'package:visual_subs/extensions.dart';
+import 'package:visual_subs/states/colors_state.dart';
 
 class CharacterName extends StatelessWidget {
   const CharacterName({

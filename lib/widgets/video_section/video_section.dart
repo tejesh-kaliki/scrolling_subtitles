@@ -1,16 +1,21 @@
+// Dart imports:
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Package imports:
 import 'package:provider/provider.dart';
-import 'package:scrolling_subtitles/extensions.dart';
-import 'package:scrolling_subtitles/states/audio_state.dart';
-import 'package:scrolling_subtitles/states/image_state.dart';
-import 'package:scrolling_subtitles/states/options_state.dart';
-import 'package:scrolling_subtitles/states/subtitle_state.dart';
 import 'package:subtitle/subtitle.dart';
 
+// Project imports:
+import 'package:visual_subs/extensions.dart';
+import 'package:visual_subs/states/audio_state.dart';
+import 'package:visual_subs/states/image_state.dart';
+import 'package:visual_subs/states/options_state.dart';
+import 'package:visual_subs/states/subtitle_state.dart';
 import 'playback_position.dart';
 import 'subtitle_display.dart';
 import 'subtitle_highlight.dart';

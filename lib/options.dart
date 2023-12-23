@@ -1,4 +1,7 @@
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Project imports:
 import 'widgets/options_tab/color_options_tab.dart';
 import 'widgets/options_tab/main_options_tab.dart';
 

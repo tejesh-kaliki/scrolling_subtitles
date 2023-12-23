@@ -1,11 +1,18 @@
+// Dart imports:
 import 'dart:convert';
 import 'dart:io';
-import 'package:file_picker/file_picker.dart';
-import 'package:flex_color_picker/flex_color_picker.dart';
+
+// Flutter imports:
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:scrolling_subtitles/extensions.dart';
+
+// Package imports:
+import 'package:file_picker/file_picker.dart';
+import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+// Project imports:
+import 'package:visual_subs/extensions.dart';
 
 class ColorsState extends ChangeNotifier {
   static const String colorsSharedKey = "colorsJsonPath";

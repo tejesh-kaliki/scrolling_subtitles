@@ -1,7 +1,12 @@
+// Dart imports:
 import 'dart:io';
 import 'dart:ui' as ui;
-import 'package:file_picker/file_picker.dart';
+
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Package imports:
+import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ImageState extends ChangeNotifier {
