@@ -1,7 +1,6 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.scrolling_subtitles">
-   <application
-        android:label="scrolling_subtitles"
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application
+        android:label="Visual Subs"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
         <activity

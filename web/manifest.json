@@ -1,6 +1,6 @@
 {
-    "name": "scrolling_subtitles",
-    "short_name": "scrolling_subtitles",
+    "name": "visual_subs",
+    "short_name": "visual_subs",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#101010",

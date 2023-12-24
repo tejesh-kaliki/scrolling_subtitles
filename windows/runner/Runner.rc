@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "scrolling_subtitles" "\0"
+            VALUE "FileDescription", "visual_subs" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "scrolling_subtitles" "\0"
+            VALUE "InternalName", "visual_subs" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2023 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "scrolling_subtitles.exe" "\0"
-            VALUE "ProductName", "scrolling_subtitles" "\0"
+            VALUE "OriginalFilename", "visual_subs.exe" "\0"
+            VALUE "ProductName", "visual_subs" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

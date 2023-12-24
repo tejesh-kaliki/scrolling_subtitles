@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:io';
+
 // Flutter imports:
 import 'package:flutter/painting.dart';
 
@@ -72,4 +75,11 @@ extension HexColor on Color {
   }
 
   String toJson() => hex;
+}
+
+extension PlatformCheck on Platform {
+  static bool get isMobile => Platform.isAndroid || Platform.isIOS;
+
+  static bool get isDesktop =>
+      ["windows", "linux", "macos"].contains(Platform.operatingSystem);
 }

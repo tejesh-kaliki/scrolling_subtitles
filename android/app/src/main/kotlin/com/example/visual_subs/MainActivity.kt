@@ -1,4 +1,4 @@
-package com.example.scrolling_subtitles
+package com.example.visual_subs
 
 import io.flutter.embedding.android.FlutterActivity
 

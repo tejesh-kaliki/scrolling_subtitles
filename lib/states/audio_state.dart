@@ -15,14 +15,13 @@ class AudioState extends ChangeNotifier {
   final Player _player = Player();
   File? _audioFile;
   bool _audioLoaded = false;
-  bool _paused = true;
 
   Player get player => _player;
   Stream<Duration> get positionStream => _player.stream.position;
   Stream<Duration> get durationStream => _player.stream.duration;
   String? get filePath => _audioFile?.path;
   bool get isLoaded => _audioLoaded;
-  bool get isPlaying => !_paused;
+  Stream<bool> get playingStream => _player.stream.playing;
 
   AudioState() {
     loadPreviousState();
@@ -58,18 +57,17 @@ class AudioState extends ChangeNotifier {
   }
 
   void togglePlayPause() {
-    _paused ? play() : pause();
+    _player.playOrPause();
+    notifyListeners();
   }
 
   void pause() {
     _player.pause();
-    _paused = true;
     notifyListeners();
   }
 
   void play() {
     _player.play();
-    _paused = false;
     notifyListeners();
   }
 
