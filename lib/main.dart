@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 
 // Package imports:
-import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
 import 'package:visual_subs/widgets/main_screen/mobile_home_page.dart';
 import 'package:window_manager/window_manager.dart';
@@ -21,7 +20,6 @@ void main() async {
   if (PlatformCheck.isDesktop) {
     await windowManager.ensureInitialized();
   }
-  MediaKit.ensureInitialized();
 
   runApp(const MyApp());
 }

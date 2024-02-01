@@ -6,59 +6,57 @@ import 'package:flutter/material.dart';
 
 // Package imports:
 import 'package:file_picker/file_picker.dart';
-import 'package:media_kit/media_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:just_audio/just_audio.dart';
 
 class AudioState extends ChangeNotifier {
   static const String audioSharedKey = "audioPath";
 
-  final Player _player = Player();
+  final AudioPlayer _player = AudioPlayer();
+  // Duration _duration = Duration.zero;
   File? _audioFile;
   bool _audioLoaded = false;
 
-  Player get player => _player;
-  Stream<Duration> get positionStream => _player.stream.position;
-  Stream<Duration> get durationStream => _player.stream.duration;
+  Stream<Duration> get positionStream => _player.positionStream;
+  Duration get duration => _player.duration ?? Duration.zero;
   String? get filePath => _audioFile?.path;
   bool get isLoaded => _audioLoaded;
-  Stream<bool> get playingStream => _player.stream.playing;
+  Stream<bool> get playingStream => _player.playingStream;
 
   AudioState() {
     loadPreviousState();
   }
 
-  void loadAudio(String audioPath) {
+  Future<void> loadAudio(String audioPath) async {
     File file = File(audioPath);
     if (!file.existsSync()) return;
 
-    // _player.open(Media.file(file), autoStart: false);
-    _player.open(Media(file.uri.toString()), play: false);
+    AudioSource source = AudioSource.file(file.path);
+    await _player.setAudioSource(source);
     _audioFile = file;
     _audioLoaded = true;
     notifyListeners();
   }
 
   void rewind10s() {
-    Duration fpos = (_player.state.position) - const Duration(seconds: 10);
+    Duration fpos = (_player.position) - const Duration(seconds: 10);
     seekToPos(fpos);
   }
 
   void forward10s() {
-    Duration fpos = (_player.state.position) + const Duration(seconds: 10);
+    Duration fpos = (_player.position) + const Duration(seconds: 10);
     seekToPos(fpos);
   }
 
   void seekToPos(Duration pos) {
-    Duration total = _player.state.duration;
+    Duration totalDuration = _player.duration ?? Duration.zero;
     if (pos < Duration.zero) pos = Duration.zero;
-    if (pos > total) pos = total;
+    if (pos > totalDuration) pos = totalDuration;
     _player.seek(pos);
-    // _player.positionController.add(_player.position..position = pos);
   }
 
   void togglePlayPause() {
-    _player.playOrPause();
-    notifyListeners();
+    _player.playing ? pause() : play();
   }
 
   void pause() {
