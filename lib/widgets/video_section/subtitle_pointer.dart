@@ -4,61 +4,34 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:scrolling_subtitles/extensions.dart';
 
-class SubtitlePointer extends StatefulWidget {
+class SubtitlePointer extends StatelessWidget {
   const SubtitlePointer({
     super.key,
     this.colors = const [Colors.white],
+    required this.timestamp,
   });
 
   final List<Color> colors;
-
-  @override
-  State<SubtitlePointer> createState() => _SubtitlePointerState();
-}
-
-class _SubtitlePointerState extends State<SubtitlePointer>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation1;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )
-      ..forward()
-      ..addListener(() {
-        if (_controller.isDismissed) {
-          _controller.forward();
-        } else if (_controller.isCompleted) {
-          _controller.reverse();
-        }
-      });
-    _animation1 = Tween<double>(begin: 0, end: pi).animate(_controller)
-      ..addListener(() {
-        setState(() {});
-      });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final Duration timestamp;
 
   @override
   Widget build(BuildContext context) {
-    List<Color> colors =
-        widget.colors.map((e) => e.clampLightness(0.625, 0.94)).toList();
     Color color1, color2;
     if (colors.length == 1) {
-      color1 = color2 = colors.first;
+      color1 = color2 = colors.first.clampLightness(0.625, 0.94);
     } else {
-      color1 = colors[0];
-      color2 = colors[1];
+      color1 = colors[0].clampLightness(0.625, 0.94);
+      color2 = colors[1].clampLightness(0.625, 0.94);
     }
+
+    // The animation should map every 2 seconds between 0 and pi.
+    // So 0-pi for first 2 seconds. pi-0 for next 2, and so on.
+    double offset = timestamp.inMilliseconds / 2000;
+    offset = offset % 2;
+    if (offset > 1) {
+      offset = 2 - offset;
+    }
+    offset = sin(offset * pi);
 
     return Stack(
       alignment: Alignment.centerRight,
@@ -66,7 +39,7 @@ class _SubtitlePointerState extends State<SubtitlePointer>
         Positioned(
           right: 15,
           child: Transform.translate(
-            offset: Offset(sin(_animation1.value) * 10, 0),
+            offset: Offset(offset * 10, 0),
             child: Transform.rotate(
               angle: -1 / 2,
               child: Icon(
@@ -79,7 +52,7 @@ class _SubtitlePointerState extends State<SubtitlePointer>
         Positioned(
           right: 30,
           child: Transform.translate(
-            offset: Offset(sin(_animation1.value) * 15, 0),
+            offset: Offset(offset * 15, 0),
             child: Transform.rotate(
               angle: -1 / 2,
               child: Icon(

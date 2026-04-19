@@ -19,6 +19,8 @@ mixin _$FrameState {
   double get scrollOffset;
   Subtitle? get backgroundSub;
   double get overlayOpacity;
+  Duration get effectiveTime;
+  Duration get transitionStart;
 
   /// Create a copy of FrameState
   /// with the given fields replaced by the non-null parameter values.
@@ -41,16 +43,27 @@ mixin _$FrameState {
             (identical(other.backgroundSub, backgroundSub) ||
                 other.backgroundSub == backgroundSub) &&
             (identical(other.overlayOpacity, overlayOpacity) ||
-                other.overlayOpacity == overlayOpacity));
+                other.overlayOpacity == overlayOpacity) &&
+            (identical(other.effectiveTime, effectiveTime) ||
+                other.effectiveTime == effectiveTime) &&
+            (identical(other.transitionStart, transitionStart) ||
+                other.transitionStart == transitionStart));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, showSubs, currentSubIndex,
-      scrollOffset, backgroundSub, overlayOpacity);
+  int get hashCode => Object.hash(
+      runtimeType,
+      showSubs,
+      currentSubIndex,
+      scrollOffset,
+      backgroundSub,
+      overlayOpacity,
+      effectiveTime,
+      transitionStart);
 
   @override
   String toString() {
-    return 'FrameState(showSubs: $showSubs, currentSubIndex: $currentSubIndex, scrollOffset: $scrollOffset, backgroundSub: $backgroundSub, overlayOpacity: $overlayOpacity)';
+    return 'FrameState(showSubs: $showSubs, currentSubIndex: $currentSubIndex, scrollOffset: $scrollOffset, backgroundSub: $backgroundSub, overlayOpacity: $overlayOpacity, effectiveTime: $effectiveTime, transitionStart: $transitionStart)';
   }
 }
 
@@ -65,7 +78,9 @@ abstract mixin class $FrameStateCopyWith<$Res> {
       int currentSubIndex,
       double scrollOffset,
       Subtitle? backgroundSub,
-      double overlayOpacity});
+      double overlayOpacity,
+      Duration effectiveTime,
+      Duration transitionStart});
 }
 
 /// @nodoc
@@ -85,6 +100,8 @@ class _$FrameStateCopyWithImpl<$Res> implements $FrameStateCopyWith<$Res> {
     Object? scrollOffset = null,
     Object? backgroundSub = freezed,
     Object? overlayOpacity = null,
+    Object? effectiveTime = null,
+    Object? transitionStart = null,
   }) {
     return _then(_self.copyWith(
       showSubs: null == showSubs
@@ -107,6 +124,14 @@ class _$FrameStateCopyWithImpl<$Res> implements $FrameStateCopyWith<$Res> {
           ? _self.overlayOpacity
           : overlayOpacity // ignore: cast_nullable_to_non_nullable
               as double,
+      effectiveTime: null == effectiveTime
+          ? _self.effectiveTime
+          : effectiveTime // ignore: cast_nullable_to_non_nullable
+              as Duration,
+      transitionStart: null == transitionStart
+          ? _self.transitionStart
+          : transitionStart // ignore: cast_nullable_to_non_nullable
+              as Duration,
     ));
   }
 }
@@ -204,16 +229,28 @@ extension FrameStatePatterns on FrameState {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(bool showSubs, int currentSubIndex, double scrollOffset,
-            Subtitle? backgroundSub, double overlayOpacity)?
+    TResult Function(
+            bool showSubs,
+            int currentSubIndex,
+            double scrollOffset,
+            Subtitle? backgroundSub,
+            double overlayOpacity,
+            Duration effectiveTime,
+            Duration transitionStart)?
         $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _FrameState() when $default != null:
-        return $default(_that.showSubs, _that.currentSubIndex,
-            _that.scrollOffset, _that.backgroundSub, _that.overlayOpacity);
+        return $default(
+            _that.showSubs,
+            _that.currentSubIndex,
+            _that.scrollOffset,
+            _that.backgroundSub,
+            _that.overlayOpacity,
+            _that.effectiveTime,
+            _that.transitionStart);
       case _:
         return orElse();
     }
@@ -234,15 +271,27 @@ extension FrameStatePatterns on FrameState {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(bool showSubs, int currentSubIndex, double scrollOffset,
-            Subtitle? backgroundSub, double overlayOpacity)
+    TResult Function(
+            bool showSubs,
+            int currentSubIndex,
+            double scrollOffset,
+            Subtitle? backgroundSub,
+            double overlayOpacity,
+            Duration effectiveTime,
+            Duration transitionStart)
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _FrameState():
-        return $default(_that.showSubs, _that.currentSubIndex,
-            _that.scrollOffset, _that.backgroundSub, _that.overlayOpacity);
+        return $default(
+            _that.showSubs,
+            _that.currentSubIndex,
+            _that.scrollOffset,
+            _that.backgroundSub,
+            _that.overlayOpacity,
+            _that.effectiveTime,
+            _that.transitionStart);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -262,15 +311,27 @@ extension FrameStatePatterns on FrameState {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(bool showSubs, int currentSubIndex, double scrollOffset,
-            Subtitle? backgroundSub, double overlayOpacity)?
+    TResult? Function(
+            bool showSubs,
+            int currentSubIndex,
+            double scrollOffset,
+            Subtitle? backgroundSub,
+            double overlayOpacity,
+            Duration effectiveTime,
+            Duration transitionStart)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _FrameState() when $default != null:
-        return $default(_that.showSubs, _that.currentSubIndex,
-            _that.scrollOffset, _that.backgroundSub, _that.overlayOpacity);
+        return $default(
+            _that.showSubs,
+            _that.currentSubIndex,
+            _that.scrollOffset,
+            _that.backgroundSub,
+            _that.overlayOpacity,
+            _that.effectiveTime,
+            _that.transitionStart);
       case _:
         return null;
     }
@@ -285,7 +346,9 @@ class _FrameState implements FrameState {
       required this.currentSubIndex,
       required this.scrollOffset,
       this.backgroundSub,
-      required this.overlayOpacity});
+      required this.overlayOpacity,
+      required this.effectiveTime,
+      required this.transitionStart});
 
   @override
   final bool showSubs;
@@ -297,6 +360,10 @@ class _FrameState implements FrameState {
   final Subtitle? backgroundSub;
   @override
   final double overlayOpacity;
+  @override
+  final Duration effectiveTime;
+  @override
+  final Duration transitionStart;
 
   /// Create a copy of FrameState
   /// with the given fields replaced by the non-null parameter values.
@@ -320,16 +387,27 @@ class _FrameState implements FrameState {
             (identical(other.backgroundSub, backgroundSub) ||
                 other.backgroundSub == backgroundSub) &&
             (identical(other.overlayOpacity, overlayOpacity) ||
-                other.overlayOpacity == overlayOpacity));
+                other.overlayOpacity == overlayOpacity) &&
+            (identical(other.effectiveTime, effectiveTime) ||
+                other.effectiveTime == effectiveTime) &&
+            (identical(other.transitionStart, transitionStart) ||
+                other.transitionStart == transitionStart));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, showSubs, currentSubIndex,
-      scrollOffset, backgroundSub, overlayOpacity);
+  int get hashCode => Object.hash(
+      runtimeType,
+      showSubs,
+      currentSubIndex,
+      scrollOffset,
+      backgroundSub,
+      overlayOpacity,
+      effectiveTime,
+      transitionStart);
 
   @override
   String toString() {
-    return 'FrameState(showSubs: $showSubs, currentSubIndex: $currentSubIndex, scrollOffset: $scrollOffset, backgroundSub: $backgroundSub, overlayOpacity: $overlayOpacity)';
+    return 'FrameState(showSubs: $showSubs, currentSubIndex: $currentSubIndex, scrollOffset: $scrollOffset, backgroundSub: $backgroundSub, overlayOpacity: $overlayOpacity, effectiveTime: $effectiveTime, transitionStart: $transitionStart)';
   }
 }
 
@@ -346,7 +424,9 @@ abstract mixin class _$FrameStateCopyWith<$Res>
       int currentSubIndex,
       double scrollOffset,
       Subtitle? backgroundSub,
-      double overlayOpacity});
+      double overlayOpacity,
+      Duration effectiveTime,
+      Duration transitionStart});
 }
 
 /// @nodoc
@@ -366,6 +446,8 @@ class __$FrameStateCopyWithImpl<$Res> implements _$FrameStateCopyWith<$Res> {
     Object? scrollOffset = null,
     Object? backgroundSub = freezed,
     Object? overlayOpacity = null,
+    Object? effectiveTime = null,
+    Object? transitionStart = null,
   }) {
     return _then(_FrameState(
       showSubs: null == showSubs
@@ -388,6 +470,14 @@ class __$FrameStateCopyWithImpl<$Res> implements _$FrameStateCopyWith<$Res> {
           ? _self.overlayOpacity
           : overlayOpacity // ignore: cast_nullable_to_non_nullable
               as double,
+      effectiveTime: null == effectiveTime
+          ? _self.effectiveTime
+          : effectiveTime // ignore: cast_nullable_to_non_nullable
+              as Duration,
+      transitionStart: null == transitionStart
+          ? _self.transitionStart
+          : transitionStart // ignore: cast_nullable_to_non_nullable
+              as Duration,
     ));
   }
 }

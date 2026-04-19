@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -6,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'
     show ConsumerState, ConsumerStatefulWidget, ProviderListenableSelect;
 import 'package:provider/provider.dart';
+import 'package:scrolling_subtitles/controllers/timeline_controller.dart';
 import 'package:scrolling_subtitles/data/frame_state.dart';
 import 'package:scrolling_subtitles/extensions.dart';
 import 'package:scrolling_subtitles/providers/options_provider.dart';
@@ -31,27 +31,46 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
   final double subtitleWidthFactor = 4 / 5;
   final double bgsubScaleFactor = 0.85;
 
-  late ValueNotifier<Subtitle?> subValue = ValueNotifier(null);
-  late StreamSubscription<Duration> _streamSubscription;
+  int subsPerPage = 8;
+  double subPosition = 5.5;
 
-  int subsPerPage = 7;
-  double subPosition = 4;
+  Duration correction = Duration.zero;
 
-  /// Denotes the current background sub.
-  /// null means that no background sub will be displayed.
-  ValueNotifier<Subtitle?> bgSubValue = ValueNotifier(null);
+  late TimelineController _timeline;
+  late AudioState _audio;
+
+  Duration scale(Duration d, double factor) {
+    return Duration(
+      microseconds: (d.inMicroseconds * factor).round(),
+    );
+  }
 
   @override
   void initState() {
     super.initState();
-    _streamSubscription = Provider.of<AudioState>(context, listen: false)
-        .positionStream
-        .listen(checkForBackgroundSub);
+
+    _audio = Provider.of<AudioState>(context, listen: false);
+
+    _timeline = TimelineController(
+      onTick: () => setState(() {}),
+    );
+
+    _audio.positionStream.listen((pos) {
+      _timeline.updateAudioTime(pos);
+    });
+
+    _audio.addListener(() {
+      _audio.isPlaying ? _timeline.play() : _timeline.pause();
+    });
+
+    if (_audio.isPlaying) {
+      _timeline.play();
+    }
   }
 
   @override
   void dispose() {
-    _streamSubscription.cancel();
+    _timeline.dispose();
     super.dispose();
   }
 
@@ -64,14 +83,27 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
         subtitles.isNotEmpty ? subtitles.first.start : Duration(days: 999);
 
     final showSubs = effectiveTime > subStartTime;
-    final currentSubIndex =
-        subtitles.indexWhere((sub) => sub.start <= position + options.subDelay);
+    final currentSubIndex = subtitles.lastIndexWhere(
+        (sub) => sub.start <= effectiveTime - Duration(milliseconds: 500));
+    final safeIndex =
+        subtitles.isEmpty ? 0 : currentSubIndex.clamp(0, subtitles.length - 1);
+    final transitionStart = subtitles.isEmpty
+        ? Duration.zero
+        : subtitles[safeIndex].end - const Duration(milliseconds: 100);
 
     return FrameState(
+      effectiveTime: effectiveTime,
       showSubs: showSubs,
-      currentSubIndex: currentSubIndex.clamp(0, subtitles.length - 1),
-      scrollOffset: 0,
+      currentSubIndex: safeIndex,
+      scrollOffset: computeScrollOffset(
+        effectiveTime: effectiveTime,
+        subtitles: subtitles,
+        index: safeIndex,
+        lineHeight: 1024 / subsPerPage,
+      ),
       overlayOpacity: computeOverlayOpacity(effectiveTime, subStartTime),
+      backgroundSub: computeBackgroundSub(effectiveTime),
+      transitionStart: transitionStart,
     );
   }
 
@@ -80,97 +112,92 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
     final triggerTime = subStartTime - const Duration(milliseconds: 500);
     final t = (effectiveTime - triggerTime).inMilliseconds /
         fadeDuration.inMilliseconds;
-    return Curves.easeInOut.transform(t.clamp(0.0, 1.0));
+    return Curves.easeOut.transform(t.clamp(0.0, 1.0));
   }
 
-  void checkForBackgroundSub(Duration position) {
+  Subtitle? computeBackgroundSub(Duration effectiveTime) {
     final backgroundSubs =
         ref.read(subtitleProvider.select((state) => state.backgroundSubs));
-    Duration subtitleDelay =
-        ref.read(optionsProvider.select((state) => state.subDelay));
-    // Duration playerPos = state.position ?? Duration.zero;
+    return backgroundSubs
+        .where((s) => s.start <= effectiveTime && effectiveTime < s.end)
+        .firstOrNull;
+  }
 
-    Subtitle? cSub = bgSubValue.value;
-    if (cSub != null && cSub.start < position && cSub.end > position) return;
+  double computeScrollOffset({
+    required Duration effectiveTime,
+    required List<Subtitle> subtitles,
+    required int index,
+    required double lineHeight,
+  }) {
+    if (index >= subtitles.length - 1) return 0;
 
-    Subtitle? finalSub;
-    for (Subtitle s in backgroundSubs) {
-      Duration start = s.start - subtitleDelay;
-      Duration end = s.end + subtitleDelay;
+    const duration = Duration(milliseconds: 500);
 
-      if (start < position && position < end) finalSub = s;
-    }
+    final current = subtitles[index];
+    final start = current.end - Duration(milliseconds: 100);
 
-    if (cSub != finalSub) bgSubValue.value = finalSub;
+    final t = (effectiveTime - start).inMilliseconds / duration.inMilliseconds;
+
+    return Curves.easeInOut.transform(t.clamp(0, 1)) * lineHeight;
   }
 
   @override
   Widget build(BuildContext context) {
-    subsPerPage = 8;
-    subPosition = 5.5;
-
-    final subOffset = subPosition.round() - ((subsPerPage + 1) / 2).round() + 1;
-
     ImageState imState = context.watch<ImageState>();
     AudioState audioState = context.watch<AudioState>();
 
-    Size imageSize = imState.imageSize;
-    double subWidth = imageSize.width * subtitleWidthFactor;
+    final imageSize = imState.imageSize;
+
+    const videoHeight = 1024.0;
+    final videoWidth = imageSize.width * (videoHeight / imageSize.height);
+    final subWidth = videoWidth * subtitleWidthFactor;
+    final frameState = computeState(_timeline.currentTime);
 
     return FittedBox(
       fit: BoxFit.contain,
       child: SizedBox(
-        height: imageSize.height,
-        width: imageSize.width,
+        height: videoHeight,
+        width: videoWidth,
         child: StreamBuilder(
             stream: audioState.durationStream,
             builder: (context, asyncSnapshot) {
               Duration total = asyncSnapshot.data ?? Duration.zero;
-              return StreamBuilder<Duration>(
-                stream: audioState.positionStream,
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) return displayImage(imState.image);
-
-                  Duration playerPos = snapshot.data!;
-                  final frameState = computeState(playerPos);
-
-                  return Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      displayImage(imState.image),
-                      Opacity(
-                        opacity: frameState.overlayOpacity,
-                        child: Container(
-                          color: Colors.black.withValues(alpha: 0.5),
-                          child: showSubtitleHighlight(
-                              imageSize.height, subWidth, frameState),
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  displayImage(imState.image),
+                  Opacity(
+                    opacity: frameState.overlayOpacity,
+                    child: Container(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      child: showSubtitleHighlight(1024, subWidth, frameState),
+                    ),
+                  ),
+                  Opacity(
+                    opacity: frameState.showSubs ? 1 : 0,
+                    child: SizedBox(
+                      width: subWidth,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: SubtitleListView(
+                          onChange: (index) {},
+                          blurPreview: true,
+                          totalDivs: subsPerPage,
+                          subPosition: subPosition,
+                          currentIndex: frameState.currentSubIndex,
+                          scrollOffset: frameState.scrollOffset,
                         ),
                       ),
-                      Opacity(
-                        opacity: frameState.showSubs ? 1 : 0,
-                        child: SizedBox(
-                          width: subWidth,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: SubtitleListView(
-                              onChange: onSubtitleChange,
-                              blurPreview: true,
-                              totalDivs: subsPerPage,
-                              offset: subOffset,
-                            ),
-                          ),
-                        ),
-                      ),
-                      showBackgroundSub(imageSize.height, subWidth),
-                      Positioned(
-                        top: 15,
-                        right: 15,
-                        child:
-                            PlaybackPosition(position: playerPos, total: total),
-                      ),
-                    ],
-                  );
-                },
+                    ),
+                  ),
+                  showBackgroundSub(1024, subWidth, frameState),
+                  Positioned(
+                    top: 15,
+                    right: 15,
+                    child: PlaybackPosition(
+                        position: _timeline.currentTime, total: total),
+                  ),
+                ],
               );
             }),
       ),
@@ -190,20 +217,21 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
     return Image.file(image, isAntiAlias: true);
   }
 
-  void onSubtitleChange(int index) {
-    final currentSub =
-        ref.read(subtitleProvider.select((state) => state.subtitles[index]));
-    subValue.value = currentSub;
-  }
-
   Widget showSubtitleHighlight(
-      double imageHeight, double subWidth, FrameState frameState) {
+    double imageHeight,
+    double subWidth,
+    FrameState frameState,
+  ) {
     final subtitles =
         ref.read(subtitleProvider.select((state) => state.subtitles));
 
     final subtitle = (frameState.currentSubIndex >= 0 &&
             frameState.currentSubIndex < subtitles.length)
         ? subtitles[frameState.currentSubIndex]
+        : null;
+    final previousSubtitle = (frameState.currentSubIndex - 1 >= 0 &&
+            frameState.currentSubIndex - 1 < subtitles.length)
+        ? subtitles[frameState.currentSubIndex - 1]
         : null;
 
     if (subtitle == null) return Container();
@@ -224,50 +252,53 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
         subtitle: subtitle,
         height: highlightHeight,
         maxHeight: height,
+        timestamp: frameState.effectiveTime,
+        previousSubtitle: previousSubtitle,
+        transitionStart: frameState.transitionStart,
       ),
     );
   }
 
-  Widget showBackgroundSub(double imageHeight, double subWidth) {
-    return ValueListenableBuilder<Subtitle?>(
-      valueListenable: bgSubValue,
-      builder: (context, subtitle, child) {
-        if (subtitle == null) return Container();
+  Widget showBackgroundSub(
+      double imageHeight, double subWidth, FrameState frameState) {
+    if (frameState.backgroundSub == null) return Container();
 
-        double height = imageHeight / subsPerPage;
-        double subHeight = SubtitlePainter.getTextDisplayHeight(
-          subtitle.textWithoutSpeaker,
-          subWidth - 40,
-          ref.read(optionsProvider),
-        );
+    final subtitle = frameState.backgroundSub!;
 
-        double highlightHeight = max(height * 0.8, subHeight + 35);
+    double height = imageHeight / subsPerPage;
+    double subHeight = SubtitlePainter.getTextDisplayHeight(
+      subtitle.textWithoutSpeaker,
+      subWidth - 40,
+      ref.read(optionsProvider),
+    );
 
-        return setPosAndHeight(
-          pos: subPosition + 1,
-          subsPerPage: subsPerPage,
-          child: Transform.scale(
-            scale: bgsubScaleFactor,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SubtitleHighlight(
-                  subtitle: subtitle,
-                  height: highlightHeight,
-                  maxHeight: height,
-                ),
-                FractionallySizedBox(
-                  widthFactor: subtitleWidthFactor,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: SubtitleDisplay(subtitle, current: true),
-                  ),
-                ),
-              ],
+    double highlightHeight = max(height * 0.8, subHeight + 35);
+
+    return setPosAndHeight(
+      pos: subPosition + 1,
+      subsPerPage: subsPerPage,
+      child: Transform.scale(
+        scale: bgsubScaleFactor,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            SubtitleHighlight(
+              subtitle: subtitle,
+              height: highlightHeight,
+              maxHeight: height,
+              timestamp: frameState.effectiveTime,
+              transitionStart: frameState.transitionStart,
             ),
-          ),
-        );
-      },
+            FractionallySizedBox(
+              widthFactor: subtitleWidthFactor,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: SubtitleDisplay(subtitle, current: true),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

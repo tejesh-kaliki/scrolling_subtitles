@@ -1,120 +1,60 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'
-    show ConsumerState, ConsumerStatefulWidget, ProviderListenableSelect;
-import 'package:provider/provider.dart';
-import 'package:scrolling_subtitles/providers/options_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scrolling_subtitles/providers/subtitle_provider.dart';
-import 'package:scrolling_subtitles/states/audio_state.dart';
-import 'package:subtitle/subtitle.dart';
 
 import 'subtitle_display.dart';
 
-class SubtitleListView extends ConsumerStatefulWidget {
+class SubtitleListView extends ConsumerWidget {
   const SubtitleListView({
     super.key,
+    required this.scrollOffset,
+    required this.currentIndex,
     required this.onChange,
+    required this.subPosition,
     this.blurPreview = false,
     this.totalDivs = 7,
-    this.offset = 1,
   });
 
   final void Function(int index) onChange;
   final bool blurPreview;
   final int totalDivs;
-  final int offset;
+  final int currentIndex;
+  final double scrollOffset;
+  final double subPosition;
 
   @override
-  ConsumerState<SubtitleListView> createState() => _SubtitleListViewState();
-}
-
-class _SubtitleListViewState extends ConsumerState<SubtitleListView> {
-  /// Current Subtitle Index
-  ValueNotifier<int> csIndex = ValueNotifier(0);
-  Subtitle? currentSub;
-  int numSubs = 0;
-  late PageController _controller;
-  late int offset;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = PageController(viewportFraction: 1 / widget.totalDivs);
-    Provider.of<AudioState>(context, listen: false)
-        .positionStream
-        .listen(onPositionChange);
-    offset = widget.offset;
-  }
-
-  void onPositionChange(Duration position) {
-    final subtitles =
-        ref.read(subtitleProvider.select((state) => state.subtitles));
-    Duration subDelay =
-        ref.read(optionsProvider.select((options) => options.subDelay));
-    if (subtitles.isEmpty) return;
-    int i = csIndex.value;
-    Subtitle sub = subtitles[i];
-    position += subDelay;
-    if (position > sub.start && position <= sub.end) return;
-
-    if (position > sub.end) {
-      do {
-        i++;
-      } while (i < subtitles.length && subtitles[i].start < position);
-      i--;
-    } else if (position < sub.start) {
-      do {
-        i--;
-      } while (i >= 0 && subtitles[i].end > position);
-      i++;
-    }
-    if (csIndex.value != i) {
-      int dif = (csIndex.value - i).abs();
-      onPageChanged(i);
-      if (dif < 5) {
-        _controller.animateToPage(
-          i,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
-        );
-      } else {
-        _controller.jumpToPage(i);
-      }
-    }
-  }
-
-  void onPageChanged(int page) {
-    csIndex.value = page;
-    if (page < numSubs) {
-      widget.onChange(page);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final subtitles =
         ref.watch(subtitleProvider.select((state) => state.subtitles));
-    numSubs = subtitles.length;
 
-    return ValueListenableBuilder<int>(
-      valueListenable: csIndex,
-      builder: (context, sub, _) {
-        return PageView.custom(
-          controller: _controller,
-          scrollDirection: Axis.vertical,
-          onPageChanged: onPageChanged,
-          childrenDelegate: SliverChildBuilderDelegate(
-            (context, i) {
-              if (i < offset) return Container();
-              return SubtitleDisplay(
-                subtitles[i - offset],
-                blur: widget.blurPreview ? i > sub + offset : false,
-                current: i == sub + offset,
-              );
-            },
-            childCount: subtitles.length + offset,
-          ),
-        );
-      },
+    const buffer = 2;
+
+    final start =
+        (currentIndex - buffer - subPosition.ceil()).clamp(0, subtitles.length);
+    final end = (currentIndex + totalDivs + buffer - subPosition.ceil())
+        .clamp(0, subtitles.length);
+    final lineHeight = 1024 / totalDivs;
+
+    final anchorOffset = subPosition * lineHeight;
+
+    return ClipRect(
+      child: Stack(
+        children: [
+          for (int i = start; i < end; i++)
+            Positioned(
+              top:
+                  (i - currentIndex) * lineHeight - scrollOffset + anchorOffset,
+              left: 0,
+              right: 0,
+              height: lineHeight,
+              child: SubtitleDisplay(
+                subtitles[i],
+                current: i == currentIndex,
+                blur: blurPreview && i > currentIndex,
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

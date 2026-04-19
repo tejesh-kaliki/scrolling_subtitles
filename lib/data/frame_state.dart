@@ -11,5 +11,7 @@ abstract class FrameState with _$FrameState {
     required double scrollOffset,
     final Subtitle? backgroundSub,
     required double overlayOpacity,
+    required Duration effectiveTime,
+    required Duration transitionStart,
   }) = _FrameState;
 }
