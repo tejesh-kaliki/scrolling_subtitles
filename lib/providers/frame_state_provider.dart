@@ -35,12 +35,18 @@ FrameState frameState(Ref ref) {
 
   final transitionStart = subtitles.isEmpty
       ? Duration.zero
-      : subtitles[safeIndex].end - const Duration(milliseconds: 100);
+      : subtitles[safeIndex].end - transitionDuration;
 
   final t = (effectiveTime - transitionStart).inMilliseconds /
       transitionDuration.inMilliseconds;
 
   final progress = Curves.easeInOut.transform(t.clamp(0.0, 1.0));
+
+  // Color starts changing when scroll is 20% through.
+  // Rescale 0.2–1.0 → 0.0–1.0 so the transition finishes exactly as scroll does.
+  const colorOffset = 0.2;
+  final colorProgress =
+      Curves.easeOut.transform(((progress - colorOffset) / (1 - colorOffset)).clamp(0.0, 1.0));
 
   final lineHeight = 1024 / 8;
 
@@ -53,6 +59,7 @@ FrameState frameState(Ref ref) {
     backgroundSub: computeBackgroundSub(backgroundSubs, effectiveTime),
     transitionStart: transitionStart,
     transitionProgress: progress,
+    colorTransitionProgress: colorProgress,
   );
 }
 

@@ -24,5 +24,6 @@ abstract class FrameState with _$FrameState {
     required Duration effectiveTime,
     required Duration transitionStart,
     required double transitionProgress,
+    required double colorTransitionProgress,
   }) = _FrameState;
 }

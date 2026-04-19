@@ -22,6 +22,7 @@ mixin _$FrameState {
   Duration get effectiveTime;
   Duration get transitionStart;
   double get transitionProgress;
+  double get colorTransitionProgress;
 
   /// Create a copy of FrameState
   /// with the given fields replaced by the non-null parameter values.
@@ -50,7 +51,10 @@ mixin _$FrameState {
             (identical(other.transitionStart, transitionStart) ||
                 other.transitionStart == transitionStart) &&
             (identical(other.transitionProgress, transitionProgress) ||
-                other.transitionProgress == transitionProgress));
+                other.transitionProgress == transitionProgress) &&
+            (identical(
+                    other.colorTransitionProgress, colorTransitionProgress) ||
+                other.colorTransitionProgress == colorTransitionProgress));
   }
 
   @override
@@ -63,11 +67,12 @@ mixin _$FrameState {
       overlayOpacity,
       effectiveTime,
       transitionStart,
-      transitionProgress);
+      transitionProgress,
+      colorTransitionProgress);
 
   @override
   String toString() {
-    return 'FrameState(showSubs: $showSubs, currentSubIndex: $currentSubIndex, scrollOffset: $scrollOffset, backgroundSub: $backgroundSub, overlayOpacity: $overlayOpacity, effectiveTime: $effectiveTime, transitionStart: $transitionStart, transitionProgress: $transitionProgress)';
+    return 'FrameState(showSubs: $showSubs, currentSubIndex: $currentSubIndex, scrollOffset: $scrollOffset, backgroundSub: $backgroundSub, overlayOpacity: $overlayOpacity, effectiveTime: $effectiveTime, transitionStart: $transitionStart, transitionProgress: $transitionProgress, colorTransitionProgress: $colorTransitionProgress)';
   }
 }
 
@@ -85,7 +90,8 @@ abstract mixin class $FrameStateCopyWith<$Res> {
       double overlayOpacity,
       Duration effectiveTime,
       Duration transitionStart,
-      double transitionProgress});
+      double transitionProgress,
+      double colorTransitionProgress});
 }
 
 /// @nodoc
@@ -108,6 +114,7 @@ class _$FrameStateCopyWithImpl<$Res> implements $FrameStateCopyWith<$Res> {
     Object? effectiveTime = null,
     Object? transitionStart = null,
     Object? transitionProgress = null,
+    Object? colorTransitionProgress = null,
   }) {
     return _then(_self.copyWith(
       showSubs: null == showSubs
@@ -141,6 +148,10 @@ class _$FrameStateCopyWithImpl<$Res> implements $FrameStateCopyWith<$Res> {
       transitionProgress: null == transitionProgress
           ? _self.transitionProgress
           : transitionProgress // ignore: cast_nullable_to_non_nullable
+              as double,
+      colorTransitionProgress: null == colorTransitionProgress
+          ? _self.colorTransitionProgress
+          : colorTransitionProgress // ignore: cast_nullable_to_non_nullable
               as double,
     ));
   }
@@ -247,7 +258,8 @@ extension FrameStatePatterns on FrameState {
             double overlayOpacity,
             Duration effectiveTime,
             Duration transitionStart,
-            double transitionProgress)?
+            double transitionProgress,
+            double colorTransitionProgress)?
         $default, {
     required TResult orElse(),
   }) {
@@ -262,7 +274,8 @@ extension FrameStatePatterns on FrameState {
             _that.overlayOpacity,
             _that.effectiveTime,
             _that.transitionStart,
-            _that.transitionProgress);
+            _that.transitionProgress,
+            _that.colorTransitionProgress);
       case _:
         return orElse();
     }
@@ -291,7 +304,8 @@ extension FrameStatePatterns on FrameState {
             double overlayOpacity,
             Duration effectiveTime,
             Duration transitionStart,
-            double transitionProgress)
+            double transitionProgress,
+            double colorTransitionProgress)
         $default,
   ) {
     final _that = this;
@@ -305,7 +319,8 @@ extension FrameStatePatterns on FrameState {
             _that.overlayOpacity,
             _that.effectiveTime,
             _that.transitionStart,
-            _that.transitionProgress);
+            _that.transitionProgress,
+            _that.colorTransitionProgress);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -333,7 +348,8 @@ extension FrameStatePatterns on FrameState {
             double overlayOpacity,
             Duration effectiveTime,
             Duration transitionStart,
-            double transitionProgress)?
+            double transitionProgress,
+            double colorTransitionProgress)?
         $default,
   ) {
     final _that = this;
@@ -347,7 +363,8 @@ extension FrameStatePatterns on FrameState {
             _that.overlayOpacity,
             _that.effectiveTime,
             _that.transitionStart,
-            _that.transitionProgress);
+            _that.transitionProgress,
+            _that.colorTransitionProgress);
       case _:
         return null;
     }
@@ -365,7 +382,8 @@ class _FrameState implements FrameState {
       required this.overlayOpacity,
       required this.effectiveTime,
       required this.transitionStart,
-      required this.transitionProgress});
+      required this.transitionProgress,
+      required this.colorTransitionProgress});
 
   @override
   final bool showSubs;
@@ -383,6 +401,8 @@ class _FrameState implements FrameState {
   final Duration transitionStart;
   @override
   final double transitionProgress;
+  @override
+  final double colorTransitionProgress;
 
   /// Create a copy of FrameState
   /// with the given fields replaced by the non-null parameter values.
@@ -412,7 +432,10 @@ class _FrameState implements FrameState {
             (identical(other.transitionStart, transitionStart) ||
                 other.transitionStart == transitionStart) &&
             (identical(other.transitionProgress, transitionProgress) ||
-                other.transitionProgress == transitionProgress));
+                other.transitionProgress == transitionProgress) &&
+            (identical(
+                    other.colorTransitionProgress, colorTransitionProgress) ||
+                other.colorTransitionProgress == colorTransitionProgress));
   }
 
   @override
@@ -425,11 +448,12 @@ class _FrameState implements FrameState {
       overlayOpacity,
       effectiveTime,
       transitionStart,
-      transitionProgress);
+      transitionProgress,
+      colorTransitionProgress);
 
   @override
   String toString() {
-    return 'FrameState(showSubs: $showSubs, currentSubIndex: $currentSubIndex, scrollOffset: $scrollOffset, backgroundSub: $backgroundSub, overlayOpacity: $overlayOpacity, effectiveTime: $effectiveTime, transitionStart: $transitionStart, transitionProgress: $transitionProgress)';
+    return 'FrameState(showSubs: $showSubs, currentSubIndex: $currentSubIndex, scrollOffset: $scrollOffset, backgroundSub: $backgroundSub, overlayOpacity: $overlayOpacity, effectiveTime: $effectiveTime, transitionStart: $transitionStart, transitionProgress: $transitionProgress, colorTransitionProgress: $colorTransitionProgress)';
   }
 }
 
@@ -449,7 +473,8 @@ abstract mixin class _$FrameStateCopyWith<$Res>
       double overlayOpacity,
       Duration effectiveTime,
       Duration transitionStart,
-      double transitionProgress});
+      double transitionProgress,
+      double colorTransitionProgress});
 }
 
 /// @nodoc
@@ -472,6 +497,7 @@ class __$FrameStateCopyWithImpl<$Res> implements _$FrameStateCopyWith<$Res> {
     Object? effectiveTime = null,
     Object? transitionStart = null,
     Object? transitionProgress = null,
+    Object? colorTransitionProgress = null,
   }) {
     return _then(_FrameState(
       showSubs: null == showSubs
@@ -505,6 +531,10 @@ class __$FrameStateCopyWithImpl<$Res> implements _$FrameStateCopyWith<$Res> {
       transitionProgress: null == transitionProgress
           ? _self.transitionProgress
           : transitionProgress // ignore: cast_nullable_to_non_nullable
+              as double,
+      colorTransitionProgress: null == colorTransitionProgress
+          ? _self.colorTransitionProgress
+          : colorTransitionProgress // ignore: cast_nullable_to_non_nullable
               as double,
     ));
   }

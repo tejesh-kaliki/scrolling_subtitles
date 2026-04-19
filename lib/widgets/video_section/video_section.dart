@@ -165,9 +165,8 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
             frameState.currentSubIndex < subtitles.length)
         ? subtitles[frameState.currentSubIndex]
         : null;
-    final previousSubtitle = (frameState.currentSubIndex - 1 >= 0 &&
-            frameState.currentSubIndex - 1 < subtitles.length)
-        ? subtitles[frameState.currentSubIndex - 1]
+    final nextSubtitle = (frameState.currentSubIndex + 1 < subtitles.length)
+        ? subtitles[frameState.currentSubIndex + 1]
         : null;
 
     if (subtitle == null) return Container();
@@ -190,7 +189,8 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
         maxHeight: height,
         timestamp: frameState.effectiveTime,
         progress: frameState.transitionProgress,
-        previousSubtitle: previousSubtitle,
+        colorProgress: frameState.colorTransitionProgress,
+        nextSubtitle: nextSubtitle,
       ),
     );
   }
@@ -231,6 +231,7 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
                 height: highlightHeight,
                 maxHeight: height,
                 progress: 1.0,
+                colorProgress: 1.0,
                 timestamp: frameState.effectiveTime,
               ),
               FractionallySizedBox(

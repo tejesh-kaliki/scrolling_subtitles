@@ -48,4 +48,4 @@ final class FrameStateProvider
   }
 }
 
-String _$frameStateHash() => r'b04444a19ac981cf3c0ac190193d5212fda19cac';
+String _$frameStateHash() => r'8992440379b6847340c4cba30eb95891d5e496ca';

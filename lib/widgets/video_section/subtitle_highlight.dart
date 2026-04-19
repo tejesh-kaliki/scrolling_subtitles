@@ -14,16 +14,18 @@ class SubtitleHighlight extends StatelessWidget {
     super.key,
     required this.subtitle,
     required this.progress,
+    required this.colorProgress,
     required this.timestamp,
-    this.previousSubtitle,
+    this.nextSubtitle,
     this.height = 80.0,
     this.maxHeight = double.infinity,
   });
 
   final Subtitle? subtitle;
-  final Subtitle? previousSubtitle;
+  final Subtitle? nextSubtitle;
   final Duration timestamp;
   final double progress;
+  final double colorProgress;
   final double height;
   final double maxHeight;
 
@@ -71,36 +73,39 @@ class SubtitleHighlight extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final boxHeight = min(height, maxHeight);
-    final p = previousSubtitle == null ? 1.0 : progress;
-
-    final colors = _colors(context, subtitle);
+    final currColors = _colors(context, subtitle);
+    final nextColors = _colors(context, nextSubtitle);
+    final sameChars = nextSubtitle != null &&
+        subtitle!.characters.toSet().difference(nextSubtitle!.characters.toSet()).isEmpty &&
+        nextSubtitle!.characters.toSet().difference(subtitle!.characters.toSet()).isEmpty;
+    final p = sameChars ? 0.0 : colorProgress;
+    final pointerColors = (nextSubtitle == null || sameChars)
+        ? currColors
+        : List.generate(
+            currColors.length,
+            (i) => Color.lerp(currColors[i], nextColors[i % nextColors.length], p)!,
+          );
 
     return Row(
       children: [
         Flexible(
           fit: FlexFit.tight,
-          child: SubtitlePointer(colors: colors, timestamp: timestamp),
+          child: SubtitlePointer(colors: pointerColors, timestamp: timestamp),
         ),
         Flexible(
           flex: 8,
           child: Stack(
             alignment: Alignment.centerLeft,
             children: [
-              if (previousSubtitle != null)
-                Opacity(
-                  opacity: 1 - p,
-                  child: _box(context, previousSubtitle, boxHeight),
-                ),
-              Opacity(
-                opacity: p,
-                child: _box(context, subtitle, boxHeight),
-              ),
+              if (nextSubtitle != null && !sameChars)
+                Opacity(opacity: p, child: _box(context, nextSubtitle, boxHeight)),
+              Opacity(opacity: (nextSubtitle == null || sameChars) ? 1.0 : 1 - p, child: _box(context, subtitle, boxHeight)),
               Transform.translate(
                 offset: Offset(10, -boxHeight / 2),
                 child: CharacterName(
                   subtitle: subtitle,
-                  previousSubtitle: previousSubtitle,
-                  progress: p,
+                  nextSubtitle: nextSubtitle,
+                  progress: colorProgress,
                 ),
               ),
             ],

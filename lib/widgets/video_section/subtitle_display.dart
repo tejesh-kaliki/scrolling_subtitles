@@ -20,7 +20,7 @@ class SubtitleDisplay extends ConsumerWidget {
     super.key,
     this.blur = false,
     this.current = false,
-    this.progress = 1.0,
+    this.progress = 0.0,
   });
 
   @override
