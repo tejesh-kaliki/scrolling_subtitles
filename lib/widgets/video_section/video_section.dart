@@ -7,10 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart'
     show ConsumerState, ConsumerStatefulWidget, ProviderListenableSelect;
 import 'package:provider/provider.dart';
 import 'package:scrolling_subtitles/extensions.dart';
+import 'package:scrolling_subtitles/providers/options_provider.dart';
 import 'package:scrolling_subtitles/providers/subtitle_provider.dart';
 import 'package:scrolling_subtitles/states/audio_state.dart';
 import 'package:scrolling_subtitles/states/image_state.dart';
-import 'package:scrolling_subtitles/states/options_state.dart';
 import 'package:subtitle/subtitle.dart';
 
 import 'playback_position.dart';
@@ -58,7 +58,7 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
     final backgroundSubs =
         ref.read(subtitleProvider.select((state) => state.backgroundSubs));
     Duration subtitleDelay =
-        Provider.of<OptionsState>(context, listen: false).subtitleDelay;
+        ref.read(optionsProvider.select((state) => state.subDelay));
     // Duration playerPos = state.position ?? Duration.zero;
 
     Subtitle? cSub = bgSubValue.value;
@@ -85,7 +85,7 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
     final subtitles =
         ref.watch(subtitleProvider.select((state) => state.subtitles));
     Duration subtitleDelay =
-        context.select<OptionsState, Duration>((s) => s.subtitleDelay);
+        ref.watch(optionsProvider.select((state) => state.subDelay));
 
     Size imageSize = imState.imageSize;
     double subWidth = imageSize.width * subtitleWidthFactor;
@@ -185,7 +185,7 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
           double subHeight = SubtitlePainter.getTextDisplayHeight(
             subtitle!.textWithoutSpeaker,
             subWidth - 40,
-            Provider.of<OptionsState>(context, listen: false),
+            ref.read(optionsProvider),
           );
 
           double highlightHeight = max(height * 0.8, subHeight + 35);
@@ -210,7 +210,7 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
         double subHeight = SubtitlePainter.getTextDisplayHeight(
           subtitle.textWithoutSpeaker,
           subWidth - 40,
-          Provider.of<OptionsState>(context, listen: false),
+          ref.read(optionsProvider),
         );
 
         double highlightHeight = max(height * 0.8, subHeight + 35);

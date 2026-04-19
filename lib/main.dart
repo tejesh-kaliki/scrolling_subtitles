@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' show ProviderScope;
 import 'package:scrolling_subtitles/states/audio_state.dart';
 import 'package:scrolling_subtitles/states/image_state.dart';
-import 'package:scrolling_subtitles/states/options_state.dart';
 import 'package:scrolling_subtitles/states/colors_state.dart';
 import 'package:scrolling_subtitles/widgets/video_section/video_section.dart';
 import 'package:window_manager/window_manager.dart';
@@ -29,7 +28,6 @@ class MyApp extends StatelessWidget {
     return ProviderScope(
       child: MultiProvider(
         providers: [
-          ChangeNotifierProvider(create: (context) => OptionsState()),
           ChangeNotifierProvider(create: (context) => ImageState()),
           ChangeNotifierProvider(create: (context) => AudioState()),
           ChangeNotifierProvider(create: (context) => ColorsState()),

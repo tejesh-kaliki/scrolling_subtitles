@@ -1,35 +1,27 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:scrolling_subtitles/states/options_state.dart';
+import 'package:scrolling_subtitles/data/config_options.dart';
 
 class SubtitlePainter extends CustomPainter {
   final String text;
   final List<Color> colors;
-  // final OptionsState options;
-  final double fontSize;
-  final double lineHeight;
-  final double borderWidth;
-  final SubtitleFontFamily fontFamily;
+  final ConfigOptions options;
 
   SubtitlePainter({
-    required OptionsState options,
+    required this.options,
     this.text = "",
     this.colors = const [],
-  })  : fontSize = options.fontSize,
-        fontFamily = options.fontFamily,
-        lineHeight = options.lineHeight,
-        borderWidth = options.borderWidth;
+  });
 
-  static TextStyle getTextStyle(
-      double fontSize, SubtitleFontFamily fontFamily, double lineHeight) {
+  static TextStyle getTextStyle(ConfigOptions options) {
     TextStyle style = TextStyle(
       fontWeight: FontWeight.w500,
       letterSpacing: 1,
-      fontSize: fontSize,
-      height: lineHeight,
+      fontSize: options.fontSize,
+      height: options.lineHeight,
     );
-    switch (fontFamily) {
+    switch (options.fontFamily) {
       case SubtitleFontFamily.poppins:
         return GoogleFonts.poppins(textStyle: style);
       case SubtitleFontFamily.verdana:
@@ -39,13 +31,13 @@ class SubtitlePainter extends CustomPainter {
     }
   }
 
-  static Paint getBorderPainter(double borderWidth) {
+  Paint getBorderPainter() {
     return Paint()
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
-      ..strokeWidth = borderWidth
-      ..color = Colors.black.withOpacity(0.75);
+      ..strokeWidth = options.textBorder
+      ..color = Colors.black.withValues(alpha: 0.75);
   }
 
   static List<InlineSpan> getTextSpans(String text) {
@@ -81,12 +73,12 @@ class SubtitlePainter extends CustomPainter {
 
   @override
   void paint(ui.Canvas canvas, ui.Size size) {
-    TextStyle textStyle = getTextStyle(fontSize, fontFamily, lineHeight);
+    TextStyle textStyle = getTextStyle(options);
     List<InlineSpan> textSpans = getTextSpans(text);
 
     TextSpan borderTextSpan = TextSpan(
       children: textSpans,
-      style: textStyle.copyWith(foreground: getBorderPainter(borderWidth)),
+      style: textStyle.copyWith(foreground: getBorderPainter()),
     );
     TextPainter borderPainter = TextPainter(
       text: borderTextSpan,
@@ -128,20 +120,12 @@ class SubtitlePainter extends CustomPainter {
       if (oldDelegate.colors[i] != colors[i]) return true;
     }
 
-    if (fontSize != oldDelegate.fontSize) return true;
-    if (fontFamily != oldDelegate.fontFamily) return true;
-    if (lineHeight != oldDelegate.lineHeight) return true;
-    if (borderWidth != oldDelegate.borderWidth) return true;
-    return false;
+    return options != oldDelegate.options;
   }
 
   static double getTextDisplayHeight(
-      String text, double width, OptionsState state) {
-    TextStyle textStyle = getTextStyle(
-      state.fontSize,
-      state.fontFamily,
-      state.lineHeight,
-    );
+      String text, double width, ConfigOptions options) {
+    TextStyle textStyle = getTextStyle(options);
     List<InlineSpan> textSpans = getTextSpans(text);
 
     TextSpan textSpan = TextSpan(children: textSpans, style: textStyle);

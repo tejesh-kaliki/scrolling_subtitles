@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'
     show ConsumerState, ConsumerStatefulWidget, ProviderListenableSelect;
 import 'package:provider/provider.dart';
+import 'package:scrolling_subtitles/providers/options_provider.dart';
 import 'package:scrolling_subtitles/providers/subtitle_provider.dart';
 import 'package:scrolling_subtitles/states/audio_state.dart';
-import 'package:scrolling_subtitles/states/options_state.dart';
 import 'package:subtitle/subtitle.dart';
 
 import 'subtitle_display.dart';
@@ -49,7 +49,7 @@ class _SubtitleListViewState extends ConsumerState<SubtitleListView> {
     final subtitles =
         ref.read(subtitleProvider.select((state) => state.subtitles));
     Duration subDelay =
-        Provider.of<OptionsState>(context, listen: false).subtitleDelay;
+        ref.read(optionsProvider.select((options) => options.subDelay));
     if (subtitles.isEmpty) return;
     int i = csIndex.value;
     Subtitle sub = subtitles[i];

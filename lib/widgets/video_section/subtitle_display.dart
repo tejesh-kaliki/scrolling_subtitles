@@ -1,14 +1,15 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart';
 import 'package:scrolling_subtitles/extensions.dart';
+import 'package:scrolling_subtitles/providers/options_provider.dart';
 import 'package:scrolling_subtitles/states/colors_state.dart';
-import 'package:scrolling_subtitles/states/options_state.dart';
 import 'package:scrolling_subtitles/widgets/video_section/subtitle_painter.dart';
 import 'package:subtitle/subtitle.dart';
 
-class SubtitleDisplay extends StatelessWidget {
+class SubtitleDisplay extends ConsumerWidget {
   final Subtitle subtitle;
   final bool blur;
   final bool current;
@@ -21,9 +22,9 @@ class SubtitleDisplay extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     ColorsState colorsState = context.watch<ColorsState>();
-    OptionsState optionsState = context.watch<OptionsState>();
+    final options = ref.watch(optionsProvider);
     String text = subtitle.textWithoutSpeaker;
 
     List<Color> colors;
@@ -40,7 +41,7 @@ class SubtitleDisplay extends StatelessWidget {
       painter: SubtitlePainter(
         text: text,
         colors: colors,
-        options: optionsState,
+        options: options,
       ),
       child: Container(),
     );

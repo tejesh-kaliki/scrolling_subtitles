@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart';
+import 'package:scrolling_subtitles/data/config_options.dart';
 import 'package:scrolling_subtitles/data/subtitle_state.dart';
+import 'package:scrolling_subtitles/providers/options_provider.dart';
 import 'package:scrolling_subtitles/providers/subtitle_provider.dart';
 import 'package:scrolling_subtitles/states/audio_state.dart';
 import 'package:scrolling_subtitles/states/image_state.dart';
-import 'package:scrolling_subtitles/states/options_state.dart';
 
 class MainOptionsTab extends ConsumerStatefulWidget {
   const MainOptionsTab({super.key});
@@ -40,10 +41,10 @@ class _MainOptionsTabState extends ConsumerState<MainOptionsTab> {
 
   void setSubDelay(String delayms) {
     int dms = int.parse(delayms);
-    int seconds = (dms / 1000).floor();
-    int milliseconds = dms % 1000;
-    context.read<OptionsState>().subtitleDelay =
-        Duration(seconds: seconds, milliseconds: milliseconds);
+    ConfigOptions options = ref.read(optionsProvider);
+    ref.read(optionsProvider.notifier).setOptions(options.copyWith(
+          subDelay: Duration(milliseconds: dms),
+        ));
   }
 
   @override
@@ -56,7 +57,7 @@ class _MainOptionsTabState extends ConsumerState<MainOptionsTab> {
     ImageState imageState = context.watch<ImageState>();
     AudioState audioState = context.watch<AudioState>();
     SubtitleState subtitleState = ref.watch(subtitleProvider);
-    OptionsState optionsState = context.watch<OptionsState>();
+    ConfigOptions options = ref.watch(optionsProvider);
     String? audioPath = audioState.filePath;
     String? imagePath = imageState.filePath;
 
@@ -194,13 +195,17 @@ class _MainOptionsTabState extends ConsumerState<MainOptionsTab> {
           ),
           const Gap(10),
           const Divider(),
-          ...displayFontOptions(optionsState),
+          ...displayFontOptions(options),
         ],
       ),
     );
   }
 
-  List<Widget> displayFontOptions(OptionsState state) {
+  void updateOptions(ConfigOptions options) {
+    ref.read(optionsProvider.notifier).setOptions(options);
+  }
+
+  List<Widget> displayFontOptions(ConfigOptions options) {
     return [
       Row(
         children: [
@@ -213,7 +218,7 @@ class _MainOptionsTabState extends ConsumerState<MainOptionsTab> {
           ),
           const Gap(10),
           DropdownMenu(
-            initialSelection: state.fontFamily,
+            initialSelection: options.fontFamily,
             inputDecorationTheme: const InputDecorationTheme(
               border: OutlineInputBorder(),
               isDense: true,
@@ -226,8 +231,9 @@ class _MainOptionsTabState extends ConsumerState<MainOptionsTab> {
                   ),
                 )
                 .toList(),
-            onSelected: (value) =>
-                state.fontFamily = value ?? SubtitleFontFamily.poppins,
+            onSelected: (value) => updateOptions(options.copyWith(
+              fontFamily: value ?? SubtitleFontFamily.poppins,
+            )),
           ),
         ],
       ),
@@ -247,12 +253,12 @@ class _MainOptionsTabState extends ConsumerState<MainOptionsTab> {
             child: TextField(
               onSubmitted: (value) {
                 double fontSize = double.parse(value);
-                state.fontSize = fontSize;
+                updateOptions(options.copyWith(fontSize: fontSize));
               },
               decoration: InputDecoration(
                 border: const OutlineInputBorder(),
                 isDense: true,
-                hintText: state.fontSize.toString(),
+                hintText: options.fontSize.toString(),
               ),
             ),
           ),
@@ -274,12 +280,12 @@ class _MainOptionsTabState extends ConsumerState<MainOptionsTab> {
             child: TextField(
               onSubmitted: (value) {
                 double lineHeight = double.parse(value);
-                state.lineHeight = lineHeight;
+                updateOptions(options.copyWith(lineHeight: lineHeight));
               },
               decoration: InputDecoration(
                 border: const OutlineInputBorder(),
                 isDense: true,
-                hintText: state.lineHeight.toString(),
+                hintText: options.lineHeight.toString(),
               ),
             ),
           ),
@@ -292,7 +298,7 @@ class _MainOptionsTabState extends ConsumerState<MainOptionsTab> {
             width: 150,
             child: Align(
               alignment: Alignment.centerRight,
-              child: Text("Border Width:"),
+              child: Text("Text Border:"),
             ),
           ),
           const Gap(10),
@@ -301,12 +307,12 @@ class _MainOptionsTabState extends ConsumerState<MainOptionsTab> {
             child: TextField(
               onSubmitted: (value) {
                 double width = double.parse(value);
-                state.borderWidth = width;
+                updateOptions(options.copyWith(textBorder: width));
               },
               decoration: InputDecoration(
                 border: const OutlineInputBorder(),
                 isDense: true,
-                hintText: state.borderWidth.toString(),
+                hintText: options.textBorder.toString(),
               ),
             ),
           ),
