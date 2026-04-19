@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'
     show ConsumerState, ConsumerStatefulWidget, ProviderListenableSelect;
 import 'package:provider/provider.dart';
+import 'package:scrolling_subtitles/data/frame_state.dart';
 import 'package:scrolling_subtitles/extensions.dart';
 import 'package:scrolling_subtitles/providers/options_provider.dart';
 import 'package:scrolling_subtitles/providers/subtitle_provider.dart';
@@ -54,6 +55,34 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
     super.dispose();
   }
 
+  FrameState computeState(Duration position) {
+    final subtitles =
+        ref.read(subtitleProvider.select((state) => state.subtitles));
+    final options = ref.read(optionsProvider);
+    final effectiveTime = position + options.subDelay;
+    final subStartTime =
+        subtitles.isNotEmpty ? subtitles.first.start : Duration(days: 999);
+
+    final showSubs = effectiveTime > subStartTime;
+    final currentSubIndex =
+        subtitles.indexWhere((sub) => sub.start <= position + options.subDelay);
+
+    return FrameState(
+      showSubs: showSubs,
+      currentSubIndex: currentSubIndex.clamp(0, subtitles.length - 1),
+      scrollOffset: 0,
+      overlayOpacity: computeOverlayOpacity(effectiveTime, subStartTime),
+    );
+  }
+
+  double computeOverlayOpacity(Duration effectiveTime, Duration subStartTime) {
+    const fadeDuration = Duration(milliseconds: 300);
+    final triggerTime = subStartTime - const Duration(milliseconds: 500);
+    final t = (effectiveTime - triggerTime).inMilliseconds /
+        fadeDuration.inMilliseconds;
+    return Curves.easeInOut.transform(t.clamp(0.0, 1.0));
+  }
+
   void checkForBackgroundSub(Duration position) {
     final backgroundSubs =
         ref.read(subtitleProvider.select((state) => state.backgroundSubs));
@@ -80,77 +109,70 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
     subsPerPage = 8;
     subPosition = 5.5;
 
+    final subOffset = subPosition.round() - ((subsPerPage + 1) / 2).round() + 1;
+
     ImageState imState = context.watch<ImageState>();
     AudioState audioState = context.watch<AudioState>();
-    final subtitles =
-        ref.watch(subtitleProvider.select((state) => state.subtitles));
-    Duration subtitleDelay =
-        ref.watch(optionsProvider.select((state) => state.subDelay));
 
     Size imageSize = imState.imageSize;
     double subWidth = imageSize.width * subtitleWidthFactor;
-    Duration subStartTime = const Duration(days: 999);
-    if (subtitles.isNotEmpty) {
-      subStartTime = subtitles.first.start;
-      subValue.value ??= subtitles.first;
-    }
 
     return FittedBox(
       fit: BoxFit.contain,
       child: SizedBox(
         height: imageSize.height,
         width: imageSize.width,
-        child: StreamBuilder<Duration>(
-          stream: audioState.positionStream,
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) return displayImage(imState.image);
+        child: StreamBuilder(
+            stream: audioState.durationStream,
+            builder: (context, asyncSnapshot) {
+              Duration total = asyncSnapshot.data ?? Duration.zero;
+              return StreamBuilder<Duration>(
+                stream: audioState.positionStream,
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return displayImage(imState.image);
 
-            Duration playerPos = snapshot.data!;
-            Duration offset = playerPos - subStartTime;
+                  Duration playerPos = snapshot.data!;
+                  final frameState = computeState(playerPos);
 
-            bool overlay =
-                offset > -subtitleDelay - const Duration(milliseconds: 500);
-            bool showSubs = offset > -subtitleDelay;
-
-            return Stack(
-              alignment: Alignment.center,
-              children: [
-                displayImage(imState.image),
-                AnimatedOpacity(
-                  duration: const Duration(milliseconds: 300),
-                  opacity: overlay ? 1.0 : 0.0,
-                  child: Container(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    child: showSubtitleHighlight(imageSize.height, subWidth),
-                  ),
-                ),
-                Opacity(
-                  opacity: showSubs ? 1 : 0,
-                  child: SizedBox(
-                    width: subWidth,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: SubtitleListView(
-                        onChange: onSubtitleChange,
-                        blurPreview: true,
-                        totalDivs: subsPerPage,
-                        offset: subPosition.round() -
-                            ((subsPerPage + 1) / 2).round() +
-                            1,
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      displayImage(imState.image),
+                      Opacity(
+                        opacity: frameState.overlayOpacity,
+                        child: Container(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          child: showSubtitleHighlight(
+                              imageSize.height, subWidth, frameState),
+                        ),
                       ),
-                    ),
-                  ),
-                ),
-                showBackgroundSub(imageSize.height, subWidth),
-                const Positioned(
-                  top: 15,
-                  right: 15,
-                  child: PlaybackPosition(),
-                ),
-              ],
-            );
-          },
-        ),
+                      Opacity(
+                        opacity: frameState.showSubs ? 1 : 0,
+                        child: SizedBox(
+                          width: subWidth,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: SubtitleListView(
+                              onChange: onSubtitleChange,
+                              blurPreview: true,
+                              totalDivs: subsPerPage,
+                              offset: subOffset,
+                            ),
+                          ),
+                        ),
+                      ),
+                      showBackgroundSub(imageSize.height, subWidth),
+                      Positioned(
+                        top: 15,
+                        right: 15,
+                        child:
+                            PlaybackPosition(position: playerPos, total: total),
+                      ),
+                    ],
+                  );
+                },
+              );
+            }),
       ),
     );
   }
@@ -174,28 +196,34 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
     subValue.value = currentSub;
   }
 
-  Widget showSubtitleHighlight(double imageHeight, double subWidth) {
+  Widget showSubtitleHighlight(
+      double imageHeight, double subWidth, FrameState frameState) {
+    final subtitles =
+        ref.read(subtitleProvider.select((state) => state.subtitles));
+
+    final subtitle = (frameState.currentSubIndex >= 0 &&
+            frameState.currentSubIndex < subtitles.length)
+        ? subtitles[frameState.currentSubIndex]
+        : null;
+
+    if (subtitle == null) return Container();
+
+    double height = imageHeight / subsPerPage;
+    double subHeight = SubtitlePainter.getTextDisplayHeight(
+      subtitle.textWithoutSpeaker,
+      subWidth - 40,
+      ref.read(optionsProvider),
+    );
+
+    double highlightHeight = max(height * 0.8, subHeight + 35);
+
     return setPosAndHeight(
       pos: subPosition,
       subsPerPage: subsPerPage,
-      child: ValueListenableBuilder<Subtitle?>(
-        valueListenable: subValue,
-        builder: (context, subtitle, child) {
-          double height = imageHeight / subsPerPage;
-          double subHeight = SubtitlePainter.getTextDisplayHeight(
-            subtitle!.textWithoutSpeaker,
-            subWidth - 40,
-            ref.read(optionsProvider),
-          );
-
-          double highlightHeight = max(height * 0.8, subHeight + 35);
-
-          return SubtitleHighlight(
-            subtitle: subtitle,
-            height: highlightHeight,
-            maxHeight: height,
-          );
-        },
+      child: SubtitleHighlight(
+        subtitle: subtitle,
+        height: highlightHeight,
+        maxHeight: height,
       ),
     );
   }
