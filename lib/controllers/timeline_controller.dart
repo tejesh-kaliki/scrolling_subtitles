@@ -14,13 +14,16 @@ class TimelineController {
     _ticker = Ticker(_onTick);
   }
 
+  bool suspended = false;
+
   void _onTick(Duration _) {
+    if (suspended) return;
     final now = DateTime.now();
     final delta = now.difference(_lastWallTime);
 
     currentTime = _lastAudioTime + delta;
 
-    onTick(); // notify UI
+    onTick();
   }
 
   /// Called when audio stream updates

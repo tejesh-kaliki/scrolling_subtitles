@@ -1,11 +1,20 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'
+    show
+        ConsumerStatefulWidget,
+        ConsumerState,
+        ProviderScope,
+        ProviderContainer;
 import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart' show ProviderScope;
+import 'package:scrolling_subtitles/services/video_export_service.dart';
 import 'package:scrolling_subtitles/states/audio_state.dart';
-import 'package:scrolling_subtitles/states/image_state.dart';
 import 'package:scrolling_subtitles/states/colors_state.dart';
+import 'package:scrolling_subtitles/states/image_state.dart';
 import 'package:scrolling_subtitles/widgets/video_section/video_section.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -46,13 +55,13 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class MyHomePage extends StatefulWidget {
+class MyHomePage extends ConsumerStatefulWidget {
   const MyHomePage({super.key});
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  ConsumerState<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends ConsumerState<MyHomePage> {
   FocusNode mainFocusNode = FocusNode();
   bool showJustVideo = false;
   bool isFullScreen = false;
@@ -132,9 +141,34 @@ class _MyHomePageState extends State<MyHomePage> {
             onPressed: audioLoaded ? audio.rewind10s : null,
             icon: const Icon(Icons.replay_10_rounded),
           ),
+          const SizedBox(height: 16),
+          IconButton(
+            tooltip: 'Export first 5 min as video',
+            onPressed: _startExport,
+            icon: const Icon(Icons.video_file_rounded),
+          ),
         ],
       );
     });
+  }
+
+  Future<void> _startExport() async {
+    final outputPath = await FilePicker.saveFile(
+      dialogTitle: 'Save exported video',
+      fileName: 'export.mp4',
+      type: FileType.video,
+    );
+    if (outputPath == null) return;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _ExportDialog(
+        outputPath: outputPath,
+        exportContext: context,
+        container: ProviderScope.containerOf(context),
+      ),
+    );
   }
 
   void fitWindow() async {
@@ -181,5 +215,114 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
     return false;
+  }
+}
+
+class _ExportDialog extends StatefulWidget {
+  final String outputPath;
+  final BuildContext exportContext;
+  final ProviderContainer container;
+
+  const _ExportDialog({
+    required this.outputPath,
+    required this.exportContext,
+    required this.container,
+  });
+
+  @override
+  State<_ExportDialog> createState() => _ExportDialogState();
+}
+
+class _ExportDialogState extends State<_ExportDialog> {
+  int captureFrame = 0;
+  int totalFrames = 0;
+  int encodingFrame = 0;
+  bool done = false;
+  String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _runExport());
+  }
+
+  void _runExport() {
+    final service = VideoExportService(
+      context: widget.exportContext,
+      parentContainer: widget.container,
+    );
+    service
+        .exportVideo(
+      outputPath: widget.outputPath,
+      duration: const Duration(minutes: 5),
+      onProgress: (_, frame, total) {
+        if (mounted) setState(() { captureFrame = frame; totalFrames = total; });
+      },
+      onEncodingProgress: (frame, _) {
+        if (mounted) setState(() => encodingFrame = frame);
+      },
+    )
+        .then((_) {
+      if (mounted) setState(() => done = true);
+    }).catchError((e) {
+      if (mounted) setState(() => error = e.toString());
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(done
+          ? 'Export complete'
+          : error != null
+              ? 'Export failed'
+              : 'Exporting video...'),
+      content: done
+          ? Text('Saved to ${widget.outputPath}')
+          : error != null
+              ? Text(error!)
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('Capturing')),
+                    const SizedBox(height: 4),
+                    LinearProgressIndicator(
+                      value: totalFrames > 0 ? captureFrame / totalFrames : null,
+                    ),
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(totalFrames > 0
+                          ? '$captureFrame / $totalFrames'
+                          : 'Starting...'),
+                    ),
+                    const SizedBox(height: 12),
+                    const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('Encoding')),
+                    const SizedBox(height: 4),
+                    LinearProgressIndicator(
+                      value: totalFrames > 0 ? encodingFrame / totalFrames : null,
+                    ),
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(totalFrames > 0
+                          ? '$encodingFrame / $totalFrames'
+                          : '—'),
+                    ),
+                  ],
+                ),
+      actions: (done || error != null)
+          ? [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ]
+          : null,
+    );
   }
 }

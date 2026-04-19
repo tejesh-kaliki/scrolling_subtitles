@@ -24,6 +24,9 @@ import 'subtitle_painter.dart';
 class VideoSection extends ConsumerStatefulWidget {
   const VideoSection({super.key});
 
+  static final repaintKey = GlobalKey();
+  static TimelineController? timelineController;
+
   @override
   ConsumerState<VideoSection> createState() => _VideoSectionState();
 }
@@ -52,7 +55,7 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
 
     _audio = Provider.of<AudioState>(context, listen: false);
 
-    _timeline = TimelineController(
+    _timeline = VideoSection.timelineController = TimelineController(
       onTick: () {
         ref.read(timelineProvider.notifier).setTime(_timeline.currentTime);
       },
@@ -98,7 +101,9 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
             stream: audioState.durationStream,
             builder: (context, asyncSnapshot) {
               Duration total = asyncSnapshot.data ?? Duration.zero;
-              return Stack(
+              return RepaintBoundary(
+                key: VideoSection.repaintKey,
+                child: Stack(
                 alignment: Alignment.center,
                 children: [
                   displayImage(imState.image),
@@ -134,6 +139,7 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
                         position: _timeline.currentTime, total: total),
                   ),
                 ],
+              ),
               );
             }),
       ),
