@@ -28,8 +28,7 @@ class ImageState extends ChangeNotifier {
   }
 
   Future<void> pickFile() async {
-    FilePickerResult? result =
-        await FilePicker.platform.pickFiles(type: FileType.image);
+    FilePickerResult? result = await FilePicker.pickFiles(type: FileType.image);
     if (result == null) return;
 
     String? path = result.files.single.path;

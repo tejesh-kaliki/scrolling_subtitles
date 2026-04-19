@@ -49,8 +49,10 @@ class SubtitleState extends ChangeNotifier {
   }
 
   Future<void> pickFile() async {
-    FilePickerResult? result = await FilePicker.platform
-        .pickFiles(type: FileType.custom, allowedExtensions: ["vtt"]);
+    FilePickerResult? result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ["vtt"],
+    );
     if (result == null) return;
 
     String? path = result.files.single.path;

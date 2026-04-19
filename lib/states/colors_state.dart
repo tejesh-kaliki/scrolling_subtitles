@@ -61,7 +61,7 @@ class ColorsState extends ChangeNotifier {
   }
 
   Future<void> saveToFile(List<String> characters) async {
-    String? path = await FilePicker.platform.saveFile(
+    String? path = await FilePicker.saveFile(
       allowedExtensions: ["json"],
       type: FileType.custom,
       fileName: "colors.json",
@@ -83,7 +83,7 @@ class ColorsState extends ChangeNotifier {
   }
 
   Future<void> pickFile(Set<String> characters) async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
+    FilePickerResult? result = await FilePicker.pickFiles(
       allowedExtensions: ["json"],
       type: FileType.custom,
     );
