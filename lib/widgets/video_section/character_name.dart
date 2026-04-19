@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:dart_casing/dart_casing.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -10,27 +12,13 @@ class CharacterName extends StatelessWidget {
   const CharacterName({
     super.key,
     required this.subtitle,
-    required this.timestamp,
+    required this.progress,
     this.previousSubtitle,
   });
 
   final Subtitle? subtitle;
   final Subtitle? previousSubtitle;
-  final Duration timestamp;
-
-  Duration scale(Duration d, double f) =>
-      Duration(microseconds: (d.inMicroseconds * f).round());
-
-  double _progress() {
-    if (previousSubtitle == null) return 1.0;
-
-    const dur = Duration(milliseconds: 300);
-    final start = previousSubtitle!.end;
-
-    final t = (timestamp - start).inMilliseconds / dur.inMilliseconds;
-
-    return t.clamp(0.0, 1.0);
-  }
+  final double progress;
 
   (LinearGradient, double) _gradientAndLuma(BuildContext context, Subtitle? s) {
     final colorsState = context.watch<ColorsState>();
@@ -53,40 +41,54 @@ class CharacterName extends StatelessWidget {
     return (LinearGradient(colors: colors), mixed.computeLuminance());
   }
 
+  LinearGradient lerpGradient(LinearGradient a, LinearGradient b, double t) {
+    final len = min(a.colors.length, b.colors.length);
+
+    final colors = List.generate(
+      len,
+      (i) => Color.lerp(a.colors[i], b.colors[i], t)!,
+    );
+
+    return LinearGradient(colors: colors);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (subtitle == null || subtitle!.speaker == "none") {
       return const SizedBox();
     }
 
-    final progress = _progress();
+    final p = progress;
+    final effectiveOpacity = previousSubtitle == null ? 1.0 : progress;
 
     final (gPrev, lPrev) = _gradientAndLuma(context, previousSubtitle);
     final (gCurr, lCurr) = _gradientAndLuma(context, subtitle);
 
-    final luminance = lPrev * (1 - progress) + lCurr * progress;
+    final gradient = lerpGradient(gPrev, gCurr, p);
+
+    final luminance = lPrev * (1 - p) + lCurr * p;
 
     final textColor = luminance < 0.3 ? Colors.white : Colors.black;
 
-    // NOTE: gradient interpolation simplified (good enough visually)
-    final gradient = progress < 0.5 ? gPrev : gCurr;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      decoration: BoxDecoration(
-        gradient: gradient,
-        border: Border.all(
-          color: Colors.white70,
-          width: 2,
-          strokeAlign: BorderSide.strokeAlignOutside,
+    return Opacity(
+      opacity: effectiveOpacity,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+        decoration: BoxDecoration(
+          gradient: gradient,
+          border: Border.all(
+            color: Colors.white70,
+            width: 2,
+            strokeAlign: BorderSide.strokeAlignOutside,
+          ),
+          borderRadius: BorderRadius.circular(100),
         ),
-        borderRadius: BorderRadius.circular(100),
-      ),
-      child: Text(
-        Casing.titleCase(subtitle!.speaker),
-        style: GoogleFonts.acme(
-          color: textColor,
-          fontSize: 22,
+        child: Text(
+          Casing.titleCase(subtitle!.speaker),
+          style: GoogleFonts.acme(
+            color: textColor,
+            fontSize: 22,
+          ),
         ),
       ),
     );

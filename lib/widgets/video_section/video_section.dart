@@ -8,11 +8,12 @@ import 'package:provider/provider.dart';
 import 'package:scrolling_subtitles/controllers/timeline_controller.dart';
 import 'package:scrolling_subtitles/data/frame_state.dart';
 import 'package:scrolling_subtitles/extensions.dart';
+import 'package:scrolling_subtitles/providers/frame_state_provider.dart';
 import 'package:scrolling_subtitles/providers/options_provider.dart';
 import 'package:scrolling_subtitles/providers/subtitle_provider.dart';
+import 'package:scrolling_subtitles/providers/timeline_provider.dart';
 import 'package:scrolling_subtitles/states/audio_state.dart';
 import 'package:scrolling_subtitles/states/image_state.dart';
-import 'package:subtitle/subtitle.dart';
 
 import 'playback_position.dart';
 import 'subtitle_display.dart';
@@ -52,7 +53,9 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
     _audio = Provider.of<AudioState>(context, listen: false);
 
     _timeline = TimelineController(
-      onTick: () => setState(() {}),
+      onTick: () {
+        ref.read(timelineProvider.notifier).setTime(_timeline.currentTime);
+      },
     );
 
     _audio.positionStream.listen((pos) {
@@ -74,84 +77,17 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
     super.dispose();
   }
 
-  FrameState computeState(Duration position) {
-    final subtitles =
-        ref.read(subtitleProvider.select((state) => state.subtitles));
-    final options = ref.read(optionsProvider);
-    final effectiveTime = position + options.subDelay;
-    final subStartTime =
-        subtitles.isNotEmpty ? subtitles.first.start : Duration(days: 999);
-
-    final showSubs = effectiveTime > subStartTime;
-    final currentSubIndex = subtitles.lastIndexWhere(
-        (sub) => sub.start <= effectiveTime - Duration(milliseconds: 500));
-    final safeIndex =
-        subtitles.isEmpty ? 0 : currentSubIndex.clamp(0, subtitles.length - 1);
-    final transitionStart = subtitles.isEmpty
-        ? Duration.zero
-        : subtitles[safeIndex].end - const Duration(milliseconds: 100);
-
-    return FrameState(
-      effectiveTime: effectiveTime,
-      showSubs: showSubs,
-      currentSubIndex: safeIndex,
-      scrollOffset: computeScrollOffset(
-        effectiveTime: effectiveTime,
-        subtitles: subtitles,
-        index: safeIndex,
-        lineHeight: 1024 / subsPerPage,
-      ),
-      overlayOpacity: computeOverlayOpacity(effectiveTime, subStartTime),
-      backgroundSub: computeBackgroundSub(effectiveTime),
-      transitionStart: transitionStart,
-    );
-  }
-
-  double computeOverlayOpacity(Duration effectiveTime, Duration subStartTime) {
-    const fadeDuration = Duration(milliseconds: 300);
-    final triggerTime = subStartTime - const Duration(milliseconds: 500);
-    final t = (effectiveTime - triggerTime).inMilliseconds /
-        fadeDuration.inMilliseconds;
-    return Curves.easeOut.transform(t.clamp(0.0, 1.0));
-  }
-
-  Subtitle? computeBackgroundSub(Duration effectiveTime) {
-    final backgroundSubs =
-        ref.read(subtitleProvider.select((state) => state.backgroundSubs));
-    return backgroundSubs
-        .where((s) => s.start <= effectiveTime && effectiveTime < s.end)
-        .firstOrNull;
-  }
-
-  double computeScrollOffset({
-    required Duration effectiveTime,
-    required List<Subtitle> subtitles,
-    required int index,
-    required double lineHeight,
-  }) {
-    if (index >= subtitles.length - 1) return 0;
-
-    const duration = Duration(milliseconds: 500);
-
-    final current = subtitles[index];
-    final start = current.end - Duration(milliseconds: 100);
-
-    final t = (effectiveTime - start).inMilliseconds / duration.inMilliseconds;
-
-    return Curves.easeInOut.transform(t.clamp(0, 1)) * lineHeight;
-  }
-
   @override
   Widget build(BuildContext context) {
     ImageState imState = context.watch<ImageState>();
     AudioState audioState = context.watch<AudioState>();
+    final frameState = ref.watch(frameStateProvider);
 
     final imageSize = imState.imageSize;
 
     const videoHeight = 1024.0;
     final videoWidth = imageSize.width * (videoHeight / imageSize.height);
     final subWidth = videoWidth * subtitleWidthFactor;
-    final frameState = computeState(_timeline.currentTime);
 
     return FittedBox(
       fit: BoxFit.contain,
@@ -253,19 +189,25 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
         height: highlightHeight,
         maxHeight: height,
         timestamp: frameState.effectiveTime,
+        progress: frameState.transitionProgress,
         previousSubtitle: previousSubtitle,
-        transitionStart: frameState.transitionStart,
       ),
     );
   }
 
   Widget showBackgroundSub(
-      double imageHeight, double subWidth, FrameState frameState) {
-    if (frameState.backgroundSub == null) return Container();
+    double imageHeight,
+    double subWidth,
+    FrameState frameState,
+  ) {
+    final bg = frameState.backgroundSub;
+    if (bg == null) return const SizedBox();
 
-    final subtitle = frameState.backgroundSub!;
+    final subtitle = bg.subtitle;
+    final opacity = bg.opacity;
 
     double height = imageHeight / subsPerPage;
+
     double subHeight = SubtitlePainter.getTextDisplayHeight(
       subtitle.textWithoutSpeaker,
       subWidth - 40,
@@ -277,26 +219,32 @@ class _VideoSectionState extends ConsumerState<VideoSection> {
     return setPosAndHeight(
       pos: subPosition + 1,
       subsPerPage: subsPerPage,
-      child: Transform.scale(
-        scale: bgsubScaleFactor,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            SubtitleHighlight(
-              subtitle: subtitle,
-              height: highlightHeight,
-              maxHeight: height,
-              timestamp: frameState.effectiveTime,
-              transitionStart: frameState.transitionStart,
-            ),
-            FractionallySizedBox(
-              widthFactor: subtitleWidthFactor,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: SubtitleDisplay(subtitle, current: true),
+      child: Opacity(
+        opacity: opacity,
+        child: Transform.scale(
+          scale: bgsubScaleFactor,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SubtitleHighlight(
+                subtitle: subtitle,
+                height: highlightHeight,
+                maxHeight: height,
+                progress: 1.0,
+                timestamp: frameState.effectiveTime,
               ),
-            ),
-          ],
+              FractionallySizedBox(
+                widthFactor: subtitleWidthFactor,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: SubtitleDisplay(
+                    subtitle,
+                    current: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

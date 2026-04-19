@@ -13,7 +13,7 @@ class SubtitleHighlight extends StatelessWidget {
   const SubtitleHighlight({
     super.key,
     required this.subtitle,
-    required this.transitionStart,
+    required this.progress,
     required this.timestamp,
     this.previousSubtitle,
     this.height = 80.0,
@@ -23,28 +23,9 @@ class SubtitleHighlight extends StatelessWidget {
   final Subtitle? subtitle;
   final Subtitle? previousSubtitle;
   final Duration timestamp;
+  final double progress;
   final double height;
   final double maxHeight;
-  final Duration transitionStart;
-
-  // ---- helpers ----
-
-  Duration scale(Duration d, double f) =>
-      Duration(microseconds: (d.inMicroseconds * f).round());
-
-  double _progress(Duration now, Duration start, Duration dur) {
-    final t = (now - start).inMilliseconds / dur.inMilliseconds;
-    return t.clamp(0.0, 1.0);
-  }
-
-  double _fadeProgress() {
-    if (previousSubtitle == null) return 1.0;
-
-    const dur = Duration(milliseconds: 300);
-    final start = transitionStart;
-
-    return _progress(timestamp, start, dur);
-  }
 
   List<Color> _colors(BuildContext context, Subtitle? s) {
     final colorsState = context.watch<ColorsState>();
@@ -70,8 +51,6 @@ class SubtitleHighlight extends StatelessWidget {
     final colors = _colors(context, s);
     final borderRadius = 20.0;
 
-    final decoration = _decoration(colors, borderRadius);
-
     return Stack(
       children: [
         ClipRRect(
@@ -82,7 +61,7 @@ class SubtitleHighlight extends StatelessWidget {
           ),
         ),
         Container(
-          decoration: decoration,
+          decoration: _decoration(colors, borderRadius),
           height: boxHeight,
         ),
       ],
@@ -92,7 +71,7 @@ class SubtitleHighlight extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final boxHeight = min(height, maxHeight);
-    final progress = _fadeProgress();
+    final p = previousSubtitle == null ? 1.0 : progress;
 
     final colors = _colors(context, subtitle);
 
@@ -100,36 +79,28 @@ class SubtitleHighlight extends StatelessWidget {
       children: [
         Flexible(
           fit: FlexFit.tight,
-          child: SubtitlePointer(
-            colors: colors,
-            timestamp: timestamp,
-          ),
+          child: SubtitlePointer(colors: colors, timestamp: timestamp),
         ),
         Flexible(
           flex: 8,
           child: Stack(
             alignment: Alignment.centerLeft,
             children: [
-              // previous → fade out
               if (previousSubtitle != null)
                 Opacity(
-                  opacity: 1 - progress,
+                  opacity: 1 - p,
                   child: _box(context, previousSubtitle, boxHeight),
                 ),
-
-              // current → fade in
               Opacity(
-                opacity: progress,
+                opacity: p,
                 child: _box(context, subtitle, boxHeight),
               ),
-
-              // character name (same progress)
               Transform.translate(
                 offset: Offset(10, -boxHeight / 2),
                 child: CharacterName(
                   subtitle: subtitle,
                   previousSubtitle: previousSubtitle,
-                  timestamp: timestamp,
+                  progress: p,
                 ),
               ),
             ],

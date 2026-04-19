@@ -13,12 +13,14 @@ class SubtitleDisplay extends ConsumerWidget {
   final Subtitle subtitle;
   final bool blur;
   final bool current;
+  final double progress;
 
   const SubtitleDisplay(
     this.subtitle, {
     super.key,
     this.blur = false,
     this.current = false,
+    this.progress = 1.0,
   });
 
   @override
@@ -47,9 +49,12 @@ class SubtitleDisplay extends ConsumerWidget {
     );
 
     if (blur && text.isNotEmpty) {
+      double blurAmount = 0;
+      final p = Curves.easeOut.transform(progress);
+      blurAmount = (1 - p) * 5;
       child = ImageFiltered(
-        imageFilter:
-            ImageFilter.blur(sigmaX: 5, sigmaY: 5, tileMode: TileMode.clamp),
+        imageFilter: ImageFilter.blur(
+            sigmaX: blurAmount, sigmaY: blurAmount, tileMode: TileMode.clamp),
         child: child,
       );
     }

@@ -26,12 +26,8 @@ class SubtitlePointer extends StatelessWidget {
 
     // The animation should map every 2 seconds between 0 and pi.
     // So 0-pi for first 2 seconds. pi-0 for next 2, and so on.
-    double offset = timestamp.inMilliseconds / 2000;
-    offset = offset % 2;
-    if (offset > 1) {
-      offset = 2 - offset;
-    }
-    offset = sin(offset * pi);
+    final t = timestamp.inMicroseconds / 2000000.0;
+    final offset = sin(t * 2 * pi);
 
     return Stack(
       alignment: Alignment.centerRight,
