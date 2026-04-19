@@ -1,20 +1,22 @@
 import 'package:dart_casing/dart_casing.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart';
+import 'package:scrolling_subtitles/data/subtitle_state.dart';
+import 'package:scrolling_subtitles/providers/subtitle_provider.dart';
 import 'package:scrolling_subtitles/states/audio_state.dart';
 import 'package:scrolling_subtitles/states/image_state.dart';
 import 'package:scrolling_subtitles/states/options_state.dart';
-import 'package:scrolling_subtitles/states/subtitle_state.dart';
 
-class MainOptionsTab extends StatefulWidget {
+class MainOptionsTab extends ConsumerStatefulWidget {
   const MainOptionsTab({super.key});
 
   @override
-  State<MainOptionsTab> createState() => _MainOptionsTabState();
+  ConsumerState<MainOptionsTab> createState() => _MainOptionsTabState();
 }
 
-class _MainOptionsTabState extends State<MainOptionsTab> {
+class _MainOptionsTabState extends ConsumerState<MainOptionsTab> {
   bool loadingSubs = false;
 
   void seekToPos(String time) {
@@ -53,11 +55,10 @@ class _MainOptionsTabState extends State<MainOptionsTab> {
   Widget build(BuildContext context) {
     ImageState imageState = context.watch<ImageState>();
     AudioState audioState = context.watch<AudioState>();
-    SubtitleState subtitleState = context.watch<SubtitleState>();
+    SubtitleState subtitleState = ref.watch(subtitleProvider);
     OptionsState optionsState = context.watch<OptionsState>();
     String? audioPath = audioState.filePath;
     String? imagePath = imageState.filePath;
-    String? subtitlePath = subtitleState.filePath;
 
     const selectedTextStyle = TextStyle(
       color: Colors.white,
@@ -94,26 +95,30 @@ class _MainOptionsTabState extends State<MainOptionsTab> {
                 children: [
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          subtitlePath != null ? Colors.green : null,
+                      backgroundColor: subtitleState.subtitleFile != null
+                          ? Colors.green
+                          : null,
                     ),
                     onPressed: loadingSubs
                         ? null
                         : () async {
                             setState(() => loadingSubs = true);
-                            await subtitleState.pickFile();
+                            await ref
+                                .read(subtitleProvider.notifier)
+                                .pickFile();
                             setState(() => loadingSubs = false);
                           },
                     child: loadingSubs
                         ? const Text("Loading Subs")
-                        : subtitlePath == null
+                        : subtitleState.subtitleFile == null
                             ? const Text("Pick Subtitles")
                             : const Text(
                                 "Pick New Subtitles",
                                 style: selectedTextStyle,
                               ),
                   ),
-                  if (subtitlePath != null) Text(displayPath(subtitlePath)),
+                  if (subtitleState.subtitleFile != null)
+                    Text(displayPath(subtitleState.subtitleFile!.path)),
                 ],
               ),
               Column(

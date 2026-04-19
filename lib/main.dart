@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' show ProviderScope;
 import 'package:scrolling_subtitles/states/audio_state.dart';
 import 'package:scrolling_subtitles/states/image_state.dart';
 import 'package:scrolling_subtitles/states/options_state.dart';
-import 'package:scrolling_subtitles/states/subtitle_state.dart';
 import 'package:scrolling_subtitles/states/colors_state.dart';
 import 'package:scrolling_subtitles/widgets/video_section/video_section.dart';
 import 'package:window_manager/window_manager.dart';
@@ -26,22 +26,23 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (context) => OptionsState()),
-        ChangeNotifierProvider(create: (context) => ImageState()),
-        ChangeNotifierProvider(create: (context) => SubtitleState()),
-        ChangeNotifierProvider(create: (context) => AudioState()),
-        ChangeNotifierProvider(create: (context) => ColorsState()),
-      ],
-      child: MaterialApp(
-        title: 'Scrolling Subtitles',
-        theme: ThemeData(
-          primarySwatch: Colors.teal,
+    return ProviderScope(
+      child: MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (context) => OptionsState()),
+          ChangeNotifierProvider(create: (context) => ImageState()),
+          ChangeNotifierProvider(create: (context) => AudioState()),
+          ChangeNotifierProvider(create: (context) => ColorsState()),
+        ],
+        child: MaterialApp(
+          title: 'Scrolling Subtitles',
+          theme: ThemeData(
+            primarySwatch: Colors.teal,
+          ),
+          darkTheme: ThemeData.dark(),
+          themeMode: ThemeMode.dark,
+          home: const MyHomePage(),
         ),
-        darkTheme: ThemeData.dark(),
-        themeMode: ThemeMode.dark,
-        home: const MyHomePage(),
       ),
     );
   }

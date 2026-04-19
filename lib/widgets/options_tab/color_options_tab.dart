@@ -1,24 +1,25 @@
 import 'package:dart_casing/dart_casing.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
+import 'package:scrolling_subtitles/providers/subtitle_provider.dart';
 import 'package:scrolling_subtitles/states/colors_state.dart';
-import 'package:scrolling_subtitles/states/subtitle_state.dart';
 
-class ColorOptionsTab extends StatefulWidget {
+class ColorOptionsTab extends ConsumerStatefulWidget {
   const ColorOptionsTab({super.key});
 
   @override
-  State<ColorOptionsTab> createState() => _ColorOptionsTabState();
+  ConsumerState<ColorOptionsTab> createState() => _ColorOptionsTabState();
 }
 
-class _ColorOptionsTabState extends State<ColorOptionsTab> {
+class _ColorOptionsTabState extends ConsumerState<ColorOptionsTab> {
   @override
   Widget build(BuildContext context) {
     ColorsState colorsState = context.watch<ColorsState>();
     Set<String> characters =
-        context.select<SubtitleState, Set<String>>((s) => s.characters);
+        ref.watch(subtitleProvider.select((state) => state.characterSet));
     List<String> characterList = characters.toList(growable: false)..sort();
 
     return SingleChildScrollView(

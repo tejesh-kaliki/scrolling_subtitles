@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'
+    show ConsumerState, ConsumerStatefulWidget, ProviderListenableSelect;
 import 'package:provider/provider.dart';
+import 'package:scrolling_subtitles/providers/subtitle_provider.dart';
 import 'package:scrolling_subtitles/states/audio_state.dart';
 import 'package:scrolling_subtitles/states/options_state.dart';
-import 'package:scrolling_subtitles/states/subtitle_state.dart';
 import 'package:subtitle/subtitle.dart';
 
 import 'subtitle_display.dart';
 
-class SubtitleListView extends StatefulWidget {
+class SubtitleListView extends ConsumerStatefulWidget {
   const SubtitleListView({
     super.key,
     required this.onChange,
@@ -22,10 +24,10 @@ class SubtitleListView extends StatefulWidget {
   final int offset;
 
   @override
-  State<SubtitleListView> createState() => _SubtitleListViewState();
+  ConsumerState<SubtitleListView> createState() => _SubtitleListViewState();
 }
 
-class _SubtitleListViewState extends State<SubtitleListView> {
+class _SubtitleListViewState extends ConsumerState<SubtitleListView> {
   /// Current Subtitle Index
   ValueNotifier<int> csIndex = ValueNotifier(0);
   Subtitle? currentSub;
@@ -44,11 +46,11 @@ class _SubtitleListViewState extends State<SubtitleListView> {
   }
 
   void onPositionChange(Duration position) {
-    List<Subtitle>? subtitles =
-        Provider.of<SubtitleState>(context, listen: false).subtitles;
+    final subtitles =
+        ref.read(subtitleProvider.select((state) => state.subtitles));
     Duration subDelay =
         Provider.of<OptionsState>(context, listen: false).subtitleDelay;
-    if (subtitles == null) return;
+    if (subtitles.isEmpty) return;
     int i = csIndex.value;
     Subtitle sub = subtitles[i];
     position += subDelay;
@@ -89,8 +91,8 @@ class _SubtitleListViewState extends State<SubtitleListView> {
 
   @override
   Widget build(BuildContext context) {
-    List<Subtitle> subtitles =
-        Provider.of<SubtitleState>(context).subtitles ?? [];
+    final subtitles =
+        ref.watch(subtitleProvider.select((state) => state.subtitles));
     numSubs = subtitles.length;
 
     return ValueListenableBuilder<int>(

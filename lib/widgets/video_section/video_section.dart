@@ -3,12 +3,14 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'
+    show ConsumerState, ConsumerStatefulWidget, ProviderListenableSelect;
 import 'package:provider/provider.dart';
 import 'package:scrolling_subtitles/extensions.dart';
+import 'package:scrolling_subtitles/providers/subtitle_provider.dart';
 import 'package:scrolling_subtitles/states/audio_state.dart';
 import 'package:scrolling_subtitles/states/image_state.dart';
 import 'package:scrolling_subtitles/states/options_state.dart';
-import 'package:scrolling_subtitles/states/subtitle_state.dart';
 import 'package:subtitle/subtitle.dart';
 
 import 'playback_position.dart';
@@ -17,14 +19,14 @@ import 'subtitle_highlight.dart';
 import 'subtitle_list_view.dart';
 import 'subtitle_painter.dart';
 
-class VideoSection extends StatefulWidget {
+class VideoSection extends ConsumerStatefulWidget {
   const VideoSection({super.key});
 
   @override
-  State<VideoSection> createState() => _VideoSectionState();
+  ConsumerState<VideoSection> createState() => _VideoSectionState();
 }
 
-class _VideoSectionState extends State<VideoSection> {
+class _VideoSectionState extends ConsumerState<VideoSection> {
   final double subtitleWidthFactor = 4 / 5;
   final double bgsubScaleFactor = 0.85;
 
@@ -53,8 +55,8 @@ class _VideoSectionState extends State<VideoSection> {
   }
 
   void checkForBackgroundSub(Duration position) {
-    List<Subtitle> backgroundSubs =
-        Provider.of<SubtitleState>(context, listen: false).backgroundSubs ?? [];
+    final backgroundSubs =
+        ref.read(subtitleProvider.select((state) => state.backgroundSubs));
     Duration subtitleDelay =
         Provider.of<OptionsState>(context, listen: false).subtitleDelay;
     // Duration playerPos = state.position ?? Duration.zero;
@@ -80,15 +82,15 @@ class _VideoSectionState extends State<VideoSection> {
 
     ImageState imState = context.watch<ImageState>();
     AudioState audioState = context.watch<AudioState>();
-    List<Subtitle>? subtitles =
-        context.select<SubtitleState, List<Subtitle>?>((s) => s.subtitles);
+    final subtitles =
+        ref.watch(subtitleProvider.select((state) => state.subtitles));
     Duration subtitleDelay =
         context.select<OptionsState, Duration>((s) => s.subtitleDelay);
 
     Size imageSize = imState.imageSize;
     double subWidth = imageSize.width * subtitleWidthFactor;
     Duration subStartTime = const Duration(days: 999);
-    if (subtitles != null && subtitles.isNotEmpty) {
+    if (subtitles.isNotEmpty) {
       subStartTime = subtitles.first.start;
       subValue.value ??= subtitles.first;
     }
@@ -118,7 +120,7 @@ class _VideoSectionState extends State<VideoSection> {
                   duration: const Duration(milliseconds: 300),
                   opacity: overlay ? 1.0 : 0.0,
                   child: Container(
-                    color: Colors.black.withOpacity(0.5),
+                    color: Colors.black.withValues(alpha: 0.5),
                     child: showSubtitleHighlight(imageSize.height, subWidth),
                   ),
                 ),
@@ -167,8 +169,8 @@ class _VideoSectionState extends State<VideoSection> {
   }
 
   void onSubtitleChange(int index) {
-    Subtitle currentSub =
-        Provider.of<SubtitleState>(context, listen: false).subtitles![index];
+    final currentSub =
+        ref.read(subtitleProvider.select((state) => state.subtitles[index]));
     subValue.value = currentSub;
   }
 
